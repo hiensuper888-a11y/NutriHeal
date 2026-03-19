@@ -29,38 +29,28 @@ export default function App() {
   const [treatmentPlan, setTreatmentPlan] = React.useState('');
   const [isConsulting, setIsConsulting] = React.useState(false);
 
-  const handleConsultation = async (e: React.FormEvent) => {
+  const handleConsultation = (e: React.FormEvent) => {
     e.preventDefault();
     if (!patientInfo.symptoms.trim()) return;
 
-    setIsConsulting(true);
-    setTreatmentPlan('');
-    
     const prompt = `
-      Dựa trên thông tin bệnh nhân sau:
+      Tôi là chuyên gia dinh dưỡng. Hãy tư vấn cho bệnh nhân:
       - Tên: ${patientInfo.name || 'N/A'}
       - Tuổi: ${patientInfo.age || 'N/A'}
       - Giới tính: ${patientInfo.gender}
       - Triệu chứng: ${patientInfo.symptoms}
       - Tiền sử bệnh: ${patientInfo.history || 'Không có'}
 
-      Hãy phân tích tình trạng và đề xuất phương pháp điều trị tập trung vào dinh dưỡng (thực phẩm nên ăn, thực phẩm nên tránh) và các bài thuốc dân gian/thực phẩm bổ dưỡng an toàn. 
-      Cấu trúc câu trả lời:
-      1. Nhận định sơ bộ (mang tính tham khảo)
-      2. Thực phẩm nên bổ sung (kèm lý do)
-      3. Thực phẩm nên kiêng khem
-      4. Bài thuốc/Món ăn bài thuốc gợi ý
-      5. Lời khuyên lối sống và nhắc nhở y tế.
+      Yêu cầu: Đề xuất thực phẩm nên ăn, nên tránh và bài thuốc dân gian an toàn.
     `;
 
-    const response = await askGemini(prompt);
-    setTreatmentPlan(response || 'Không thể tạo phương pháp điều trị.');
-    setIsConsulting(false);
-    
-    // Scroll to result
-    setTimeout(() => {
-      document.getElementById('treatment-result')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    // Copy to clipboard for convenience
+    navigator.clipboard.writeText(prompt).then(() => {
+      alert('Đã sao chép thông tin tư vấn! Bạn sẽ được chuyển đến Gemini để nhận phản hồi miễn phí.');
+      window.open('https://gemini.google.com/app', '_blank');
+    }).catch(() => {
+      window.open('https://gemini.google.com/app', '_blank');
+    });
   };
 
   const [isAiLoading, setIsAiLoading] = React.useState(false);
@@ -72,15 +62,11 @@ export default function App() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleAiAsk = async (e: React.FormEvent) => {
+  const handleAiAsk = (e: React.FormEvent) => {
     e.preventDefault();
     if (!aiQuery.trim()) return;
     
-    setIsAiLoading(true);
-    setAiResponse('');
-    const response = await askGemini(aiQuery);
-    setAiResponse(response || 'Không có phản hồi.');
-    setIsAiLoading(false);
+    window.open(`https://gemini.google.com/app`, '_blank');
   };
 
   return (
@@ -242,58 +228,38 @@ export default function App() {
 
                 <button 
                   type="submit"
-                  disabled={isConsulting}
-                  className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
                 >
-                  {isConsulting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Đang phân tích...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={20} />
-                      Xuất phương pháp điều trị
-                    </>
-                  )}
+                  <Sparkles size={20} />
+                  Tư vấn miễn phí qua Gemini.google.com
                 </button>
               </form>
             </div>
 
             <div id="treatment-result" className="relative min-h-[400px]">
-              <AnimatePresence mode="wait">
-                {treatmentPlan ? (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="bg-brand-50 p-8 rounded-[2rem] border border-brand-100 h-full overflow-y-auto"
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-xl font-serif font-bold text-brand-900">Phương pháp đề xuất</h4>
-                      <button 
-                        onClick={() => setTreatmentPlan('')}
-                        className="text-brand-600 hover:text-brand-700"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                    <div className="markdown-body prose prose-stone max-w-none">
-                      <ReactMarkdown>{treatmentPlan}</ReactMarkdown>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <div className="bg-stone-100/50 border-2 border-dashed border-stone-200 rounded-[2rem] h-full flex flex-col items-center justify-center text-center p-8">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-stone-300 mb-4">
-                      <Activity size={32} />
-                    </div>
-                    <h4 className="font-bold text-stone-400 mb-2">Kết quả sẽ hiển thị tại đây</h4>
-                    <p className="text-stone-400 text-sm max-w-xs">
-                      Vui lòng điền đầy đủ thông tin bệnh nhân và nhấn nút phân tích để nhận tư vấn từ AI.
-                    </p>
+              <div className="bg-stone-100/50 border-2 border-dashed border-stone-200 rounded-[2rem] h-full flex flex-col items-center justify-center text-center p-8">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-brand-500 mb-4 shadow-sm">
+                  <Sparkles size={32} />
+                </div>
+                <h4 className="font-bold text-stone-700 mb-2">Sử dụng Gemini Miễn Phí</h4>
+                <p className="text-stone-500 text-sm max-w-xs mb-6">
+                  Hệ thống sẽ tự động sao chép thông tin bệnh nhân và mở trang web Gemini chính thức để bạn nhận tư vấn mà không cần API Key.
+                </p>
+                <div className="flex flex-col gap-2 w-full max-w-xs">
+                  <div className="flex items-center gap-2 text-xs text-stone-400 bg-white p-3 rounded-xl border border-stone-100">
+                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+                    Bước 1: Điền thông tin bên trái
                   </div>
-                )}
-              </AnimatePresence>
+                  <div className="flex items-center gap-2 text-xs text-stone-400 bg-white p-3 rounded-xl border border-stone-100">
+                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+                    Bước 2: Nhấn nút tư vấn
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-stone-400 bg-white p-3 rounded-xl border border-stone-100">
+                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+                    Bước 3: Dán (Paste) vào Gemini
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -530,35 +496,31 @@ export default function App() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {!aiResponse && !isAiLoading && (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4 text-stone-400">
-                      <MessageSquare size={32} />
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-600 shadow-inner">
+                    <Sparkles size={40} />
+                  </div>
+                  <h4 className="text-xl font-serif font-bold text-stone-900 mb-3">Tư vấn trực tiếp qua Gemini</h4>
+                  <p className="text-stone-500 text-sm leading-relaxed mb-8">
+                    Để đảm bảo tính riêng tư và sử dụng hoàn toàn miễn phí không cần API Key, hệ thống sẽ chuyển bạn đến ứng dụng Gemini chính thức của Google.
+                  </p>
+                  
+                  <div className="space-y-3 text-left bg-stone-50 p-4 rounded-2xl border border-stone-100">
+                    <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">Cách thức hoạt động:</p>
+                    <div className="flex items-start gap-3 text-sm text-stone-600">
+                      <div className="w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</div>
+                      <p>Nhập câu hỏi của bạn vào ô bên dưới.</p>
                     </div>
-                    <h4 className="font-bold text-stone-900 mb-2">Hỏi tôi bất cứ điều gì</h4>
-                    <p className="text-stone-500 text-sm">
-                      Ví dụ: "Thực phẩm nào tốt cho người tiểu đường?" hoặc "Cách dùng gừng chữa ho?"
-                    </p>
+                    <div className="flex items-start gap-3 text-sm text-stone-600">
+                      <div className="w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</div>
+                      <p>Hệ thống sẽ mở trang <strong>gemini.google.com</strong>.</p>
+                    </div>
+                    <div className="flex items-start gap-3 text-sm text-stone-600">
+                      <div className="w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</div>
+                      <p>Bạn chỉ cần dán câu hỏi và nhận tư vấn miễn phí.</p>
+                    </div>
                   </div>
-                )}
-
-                {isAiLoading && (
-                  <div className="flex flex-col gap-4">
-                    <div className="w-full h-4 bg-stone-100 rounded-full animate-pulse" />
-                    <div className="w-[90%] h-4 bg-stone-100 rounded-full animate-pulse" />
-                    <div className="w-[80%] h-4 bg-stone-100 rounded-full animate-pulse" />
-                  </div>
-                )}
-
-                {aiResponse && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="markdown-body"
-                  >
-                    <ReactMarkdown>{aiResponse}</ReactMarkdown>
-                  </motion.div>
-                )}
+                </div>
               </div>
 
               <div className="p-6 border-t border-stone-100 bg-stone-50">
@@ -566,16 +528,16 @@ export default function App() {
                   <input
                     type="text"
                     placeholder="Nhập câu hỏi của bạn..."
-                    className="w-full pl-4 pr-12 py-3 bg-white border border-stone-200 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all"
+                    className="w-full pl-4 pr-12 py-4 bg-white border border-stone-200 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm"
                     value={aiQuery}
                     onChange={(e) => setAiQuery(e.target.value)}
                   />
                   <button 
                     type="submit"
-                    disabled={isAiLoading || !aiQuery.trim()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-brand-600 text-white rounded-xl flex items-center justify-center hover:bg-brand-700 disabled:opacity-50 transition-all"
+                    disabled={!aiQuery.trim()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center hover:bg-brand-700 disabled:opacity-50 transition-all shadow-md shadow-brand-600/20"
                   >
-                    <Send size={16} />
+                    <Send size={18} />
                   </button>
                 </form>
                 <p className="text-[10px] text-stone-400 mt-3 text-center">
