@@ -74,7 +74,10 @@ export default function App() {
     age: '',
     gender: 'Nam',
     symptoms: '',
-    history: ''
+    history: '',
+    dailySchedule: '',
+    currentDiet: '',
+    currentMedication: ''
   });
 
   const [localTime, setLocalTime] = React.useState('');
@@ -240,24 +243,36 @@ export default function App() {
     if (consultationMode === 'article') {
       if (relevantArticle) {
         const localizedName = relevantArticle.translations?.[language]?.name || relevantArticle.name;
+        const sourcesList = relevantArticle.sources 
+          ? `\n**9. ${t('reputableSources')}:**\n${relevantArticle.sources.map(s => `- [${s.title}](${s.url})`).join('\n')}\n`
+          : '';
         setTreatmentPlan(`
 ### ${t('articleAnalysis')}: ${localizedName}
 
 **1. ${t('preliminaryAssessment')}:**
 ${t('consultationSymptomPrefix')} **${localizedName}**.
 
-**2. ${t('suggestedNutrients')}:**
+**2. ${t('dietaryAdvice')}:**
+- ${t('genericDietAdvice')}
+
+**3. ${t('medicationsSupplements')}:**
+- ${t('genericMedicationAdvice')}
+
+**4. ${t('suggestedNutrients')}:**
 - ${(relevantArticle.translations?.[language]?.nutrients || relevantArticle.nutrients).join(', ')}
 
-**3. ${t('mainBenefits')}:**
+**5. ${t('mainBenefits')}:**
 - ${(relevantArticle.translations?.[language]?.benefits || relevantArticle.benefits).join('\n- ')}
 
-**4. ${t('howToUseFromArticle')}:**
+**6. ${t('howToUseFromArticle')}:**
 ${relevantArticle.translations?.[language]?.howToUse || relevantArticle.howToUse}
 
-**5. ${t('importantNote')}:**
-${relevantArticle.translations?.[language]?.caution || relevantArticle.caution || 'N/A'}
+**7. ${t('dailySchedule')}:**
+- ${t('genericScheduleAdvice')}
 
+**8. ${t('importantNote')}:**
+${relevantArticle.translations?.[language]?.caution || relevantArticle.caution || 'N/A'}
+${sourcesList}
 *${t('medicalDisclaimer')}*
         `);
       } else {
@@ -287,16 +302,21 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
       - Giới tính: ${patientInfo.gender}
       - Triệu chứng: ${patientInfo.symptoms}
       - Tiền sử bệnh: ${patientInfo.history || 'Không có'}
+      - Lịch trình sinh hoạt: ${patientInfo.dailySchedule || 'Không có'}
+      - Chế độ ăn uống hiện tại: ${patientInfo.currentDiet || 'Không có'}
+      - Thuốc/Thực phẩm bổ sung đang dùng: ${patientInfo.currentMedication || 'Không có'}
 
       ${articleContext}
 
-      Hãy phân tích tình trạng và đề xuất phương pháp điều trị tập trung vào dinh dưỡng (thực phẩm nên ăn, thực phẩm nên tránh) và các bài thuốc dân gian/thực phẩm bổ dưỡng an toàn. 
+      Hãy phân tích tình trạng và đề xuất phương pháp điều trị tập trung vào dinh dưỡng, lối sống và các bài thuốc dân gian/thực phẩm bổ dưỡng an toàn. 
       Cấu trúc câu trả lời:
       1. Nhận định sơ bộ (mang tính tham khảo)
-      2. Thực phẩm nên bổ sung (kèm lý do)
-      3. Thực phẩm nên kiêng khem
+      2. Chế độ ăn uống chi tiết (Ăn gì, uống gì, kiêng gì kèm lý do)
+      3. Thuốc và Thực phẩm bổ sung (Gợi ý các loại thuốc không kê đơn hoặc thực phẩm bổ sung an toàn, phù hợp)
       4. Bài thuốc/Món ăn bài thuốc gợi ý
-      5. Lời khuyên lối sống và nhắc nhở y tế.
+      5. Lịch trình sinh hoạt (Thời gian ngủ, nghỉ ngơi, làm việc trong ngày)
+      6. Lời khuyên lối sống và nhắc nhở y tế.
+      7. Nguồn tham khảo và Nghiên cứu uy tín (Bắt buộc cung cấp các đường link URL cụ thể dẫn đến các trang web y tế, bài báo nghiên cứu khoa học thực tiễn và uy tín nhất thế giới từ Mỹ, Châu Âu như PubMed, Mayo Clinic, WHO, NIH, NHS... để chứng minh cho các đề xuất trên).
       
       Lưu ý: Phải trả lời bằng ngôn ngữ ${language} (Mã ngôn ngữ ISO).
     `;
@@ -336,7 +356,9 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
     setIsAiLoading(true);
     setAiResponse('');
     try {
-      const response = await askGemini(aiQuery);
+      const languageName = LANGUAGES.find(l => l.code === language)?.name || 'English';
+      const promptWithLanguage = `${aiQuery}\n\n(Please answer in ${languageName})`;
+      const response = await askGemini(promptWithLanguage);
       setAiResponse(response || 'No response.');
       setRemainingQuota(getRemainingQuota());
     } catch (error) {
@@ -347,9 +369,9 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-brand-50/50">
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full glass border-b border-stone-200">
+      <header className="sticky top-0 z-40 w-full glass">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Logo className="shadow-lg shadow-brand-600/10" />
@@ -474,9 +496,9 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
         {/* Patient Consultation Section */}
         <section id="treatment-consultation-form" className="mb-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100">
+            <div className="bg-white/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl shadow-stone-200/50 border border-white">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-brand-100 text-brand-700 rounded-2xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-brand-100 text-brand-700 rounded-2xl flex items-center justify-center shadow-inner">
                   <Activity size={24} />
                 </div>
                 <div>
@@ -515,7 +537,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                     <input 
                       type="text" 
                       placeholder={t('namePlaceholder')}
-                      className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
                       value={patientInfo.name}
                       onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})}
                     />
@@ -525,7 +547,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                     <input 
                       type="number" 
                       placeholder="30"
-                      className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all"
+                      className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
                       value={patientInfo.age}
                       onChange={(e) => setPatientInfo({...patientInfo, age: e.target.value})}
                     />
@@ -561,7 +583,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                   <textarea 
                     rows={3}
                     placeholder={t('symptomsPlaceholder')}
-                    className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all resize-none"
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all resize-none"
                     value={patientInfo.symptoms}
                     onChange={(e) => setPatientInfo({...patientInfo, symptoms: e.target.value})}
                     required
@@ -573,9 +595,42 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                   <input 
                     type="text" 
                     placeholder={t('historyPlaceholder')}
-                    className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all"
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
                     value={patientInfo.history}
                     onChange={(e) => setPatientInfo({...patientInfo, history: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('dailyScheduleLabel')}</label>
+                  <input 
+                    type="text" 
+                    placeholder={t('dailySchedulePlaceholder')}
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
+                    value={patientInfo.dailySchedule}
+                    onChange={(e) => setPatientInfo({...patientInfo, dailySchedule: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('currentDietLabel')}</label>
+                  <input 
+                    type="text" 
+                    placeholder={t('currentDietPlaceholder')}
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
+                    value={patientInfo.currentDiet}
+                    onChange={(e) => setPatientInfo({...patientInfo, currentDiet: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('currentMedicationLabel')}</label>
+                  <input 
+                    type="text" 
+                    placeholder={t('currentMedicationPlaceholder')}
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
+                    value={patientInfo.currentMedication}
+                    onChange={(e) => setPatientInfo({...patientInfo, currentMedication: e.target.value})}
                   />
                 </div>
 
@@ -606,7 +661,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-brand-100/50 border border-brand-100 h-full overflow-y-auto relative"
+                    className="bg-white/95 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl shadow-brand-500/10 border border-brand-100 h-full overflow-y-auto relative"
                   >
                     {/* Professional Header Badge */}
                     <div className="flex items-center justify-between mb-8 pb-6 border-b border-stone-100">
@@ -668,9 +723,9 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                           <User size={18} />
                           <span className="text-sm font-medium">{t('patientProfile')}</span>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('name')}</p>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('fullName')}</p>
                             <p className="text-sm font-bold text-stone-700">{patientInfo.name || 'N/A'}</p>
                           </div>
                           <div>
@@ -682,9 +737,41 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                             <p className="text-sm font-bold text-stone-700 capitalize">{patientInfo.gender}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('date')}</p>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">Date</p>
                             <p className="text-sm font-bold text-stone-700">{new Date().toLocaleDateString()}</p>
                           </div>
+                        </div>
+                        <div className="space-y-3 pt-4 border-t border-stone-200/60">
+                          {patientInfo.symptoms && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('symptomsLabel')}</p>
+                              <p className="text-sm font-medium text-stone-700">{patientInfo.symptoms}</p>
+                            </div>
+                          )}
+                          {patientInfo.history && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('historyLabel')}</p>
+                              <p className="text-sm font-medium text-stone-700">{patientInfo.history}</p>
+                            </div>
+                          )}
+                          {patientInfo.dailySchedule && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('dailyScheduleLabel')}</p>
+                              <p className="text-sm font-medium text-stone-700">{patientInfo.dailySchedule}</p>
+                            </div>
+                          )}
+                          {patientInfo.currentDiet && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('currentDietLabel')}</p>
+                              <p className="text-sm font-medium text-stone-700">{patientInfo.currentDiet}</p>
+                            </div>
+                          )}
+                          {patientInfo.currentMedication && (
+                            <div>
+                              <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('currentMedicationLabel')}</p>
+                              <p className="text-sm font-medium text-stone-700">{patientInfo.currentMedication}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -699,7 +786,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                     </div>
                   </motion.div>
                 ) : (
-                  <div className="bg-stone-100/50 border-2 border-dashed border-stone-200 rounded-[2rem] h-full flex flex-col items-center justify-center text-center p-8">
+                  <div className="bg-white/50 backdrop-blur-sm border-2 border-dashed border-stone-200 rounded-[2.5rem] h-full flex flex-col items-center justify-center text-center p-8">
                     <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-brand-500 mb-4 shadow-sm">
                       <Activity size={32} />
                     </div>
@@ -1382,6 +1469,25 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                     <p className="text-[10px] text-stone-400 mt-1 ml-1 leading-relaxed">
                       {t('apiKeyNote')}
                     </p>
+                  </div>
+
+                  <div className="bg-stone-50 rounded-2xl p-5 border border-stone-100">
+                    <h4 className="text-xs font-bold text-stone-700 mb-3 flex items-center gap-2">
+                      <Info size={14} className="text-brand-600" />
+                      {t('apiKeyGuideTitle')}
+                    </h4>
+                    <ul className="space-y-2">
+                      {(t('apiKeyGuideSteps') as unknown as string[]).map((step, index) => (
+                        <li key={index} className="text-[11px] text-stone-500 flex gap-2 leading-relaxed">
+                          <span className="flex-shrink-0 w-4 h-4 bg-white border border-stone-200 rounded-full flex items-center justify-center text-[9px] font-bold text-stone-400">
+                            {index + 1}
+                          </span>
+                          <div className="markdown-body prose-sm prose-stone">
+                            <ReactMarkdown>{step}</ReactMarkdown>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
  
                   <div className="flex gap-3">

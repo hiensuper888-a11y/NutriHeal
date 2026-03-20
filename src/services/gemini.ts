@@ -58,7 +58,7 @@ export const askGemini = async (prompt: string) => {
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
-        systemInstruction: "Bạn là một chuyên gia dinh dưỡng và y học cổ truyền Việt Nam. Hãy trả lời các câu hỏi về thực phẩm bổ dưỡng và cách chữa bệnh bằng thực phẩm một cách khoa học, dễ hiểu và an toàn. Luôn nhắc nhở người dùng tham khảo ý kiến bác sĩ cho các tình trạng nghiêm trọng. Trả lời bằng tiếng Việt, định dạng Markdown.",
+        systemInstruction: "You are a medical expert, nutritionist, and traditional medicine specialist. Answer questions about nutritious foods and healing with food scientifically, clearly, and safely. Always remind users to consult a doctor for serious conditions. Provide your response in Markdown format.",
       },
     });
     return response.text;
