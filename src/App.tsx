@@ -1,9 +1,10 @@
 import React from 'react';
-import { Search, Heart, Shield, Brain, Sparkles, Activity, Info, X, MessageSquare, Send, ChevronRight } from 'lucide-react';
+import { Search, Heart, Shield, Brain, Sparkles, Activity, Info, X, MessageSquare, Send, ChevronRight, ExternalLink, Share2, Lock, Settings, Key, Phone, Facebook, CreditCard, Smartphone, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FOODS, CATEGORIES } from './data';
 import { Food } from './types';
-import { askGemini } from './services/gemini';
+import { askGemini, getRemainingQuota, setUserApiKey, getUserApiKey } from './services/gemini';
+import { translations, LANGUAGES, Language } from './translations';
 import ReactMarkdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -12,11 +13,60 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const Logo = ({ className }: { className?: string }) => {
+  const id = React.useId().replace(/:/g, '');
+  const pillGradId = `pill-grad-${id}`;
+  const zenGlowId = `zen-glow-${id}`;
+  
+  return (
+    <svg viewBox="0 0 100 100" className={cn("w-10 h-10", className)} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id={pillGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#059669" />
+          <stop offset="100%" stopColor="#10b981" />
+        </linearGradient>
+        <filter id={zenGlowId} x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
+      
+      {/* Artistic Capsule - Horizontal with soft edges */}
+      <rect x="10" y="42" width="80" height="36" rx="18" fill="white" stroke={`url(#${pillGradId})`} strokeWidth="3" />
+      <path d="M50 42V78" stroke={`url(#${pillGradId})`} strokeWidth="3" strokeLinecap="round" />
+      <rect x="10" y="42" width="40" height="36" rx="18" fill={`url(#${pillGradId})`} opacity="0.08" />
+      
+      {/* Meditating Person - Fluid Zen Silhouette */}
+      <g filter={`url(#${zenGlowId})`}>
+        {/* Head - Floating like a seed of wisdom */}
+        <circle cx="50" cy="28" r="7" fill={`url(#${pillGradId})`} />
+        {/* Body - Flowing posture */}
+        <path d="M50 35 Q50 48 50 58" stroke={`url(#${pillGradId})`} strokeWidth="5" strokeLinecap="round" />
+        {/* Arms - Circular mudra for harmony */}
+        <path d="M42 45 Q32 48 42 58" stroke={`url(#${pillGradId})`} strokeWidth="3" strokeLinecap="round" fill="none" />
+        <path d="M58 45 Q68 48 58 58" stroke={`url(#${pillGradId})`} strokeWidth="3" strokeLinecap="round" fill="none" />
+        {/* Legs - Lotus position sitting gracefully */}
+        <path d="M32 58 Q50 68 68 58" stroke={`url(#${pillGradId})`} strokeWidth="5" strokeLinecap="round" fill="none" />
+      </g>
+      
+      {/* Zen Energy Ripples */}
+      <circle cx="50" cy="28" r="16" stroke={`url(#${pillGradId})`} strokeWidth="0.5" strokeDasharray="3 5" opacity="0.25" />
+      <circle cx="50" cy="28" r="22" stroke={`url(#${pillGradId})`} strokeWidth="0.5" strokeDasharray="1 7" opacity="0.1" />
+    </svg>
+  );
+};
+
 export default function App() {
+  const [language, setLanguage] = React.useState<Language>('vi');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [selectedFood, setSelectedFood] = React.useState<Food | null>(null);
   const [isAiOpen, setIsAiOpen] = React.useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = React.useState(false);
+  const [isTermsOpen, setIsTermsOpen] = React.useState(false);
+  const [isAboutOpen, setIsAboutOpen] = React.useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [userApiKey, setUserApiKeyInput] = React.useState(getUserApiKey() || '');
   const [aiQuery, setAiQuery] = React.useState('');
   const [aiResponse, setAiResponse] = React.useState('');
   const [patientInfo, setPatientInfo] = React.useState({
@@ -26,47 +76,224 @@ export default function App() {
     symptoms: '',
     history: ''
   });
+
+  const [localTime, setLocalTime] = React.useState('');
+
+  const handleShare = async (food: Food) => {
+    const localizedName = food.translations?.[language]?.name || food.name;
+    const shareData = {
+      title: localizedName,
+      text: `${t('shareText')} ${localizedName}: ${food.translations?.[language]?.description || food.description}`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+        alert(t('copySuccess'));
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  };
   const [treatmentPlan, setTreatmentPlan] = React.useState('');
   const [isConsulting, setIsConsulting] = React.useState(false);
+  const [remainingQuota, setRemainingQuota] = React.useState(getRemainingQuota());
+  const [consultationMode, setConsultationMode] = React.useState<'ai' | 'article'>('ai');
+  const [timeToReset, setTimeToReset] = React.useState('');
 
-  const handleConsultation = (e: React.FormEvent) => {
+  const t = (key: keyof typeof translations['vi']) => {
+    return translations[language][key] || translations['en'][key] || key;
+  };
+
+  React.useEffect(() => {
+    // Set document title
+    document.title = t('appName');
+
+    // Auto-detect language
+    const savedLang = localStorage.getItem('nutriheal_lang') as Language;
+    if (savedLang && LANGUAGES.find(l => l.code === savedLang)) {
+      setLanguage(savedLang);
+    } else {
+      const browserLang = navigator.language.split('-')[0] as Language;
+      const supportedLang = LANGUAGES.find(l => l.code === browserLang);
+      if (supportedLang) {
+        setLanguage(supportedLang.code as Language);
+      } else {
+        setLanguage('en');
+      }
+    }
+
+    // Update favicon with a data URL of the logo
+    const updateFavicon = () => {
+      const svg = document.querySelector('header svg');
+      if (svg) {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+          ctx?.drawImage(img, 0, 0, 64, 64);
+          const link = (document.querySelector("link[rel*='icon']") || document.createElement('link')) as HTMLLinkElement;
+          link.type = 'image/x-icon';
+          link.rel = 'shortcut icon';
+          link.href = canvas.toDataURL('image/x-icon');
+          document.getElementsByTagName('head')[0].appendChild(link);
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+      }
+    };
+    // Small delay to ensure SVG is rendered
+    setTimeout(updateFavicon, 1000);
+  }, [language]);
+
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    localStorage.setItem('nutriheal_lang', lang);
+  };
+
+  React.useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date();
+      const nextDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      const diff = nextDay.getTime() - now.getTime();
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeToReset(`${hours}h ${minutes}m`);
+
+      // Update local time with timezone awareness
+      const timeStr = now.toLocaleTimeString(language, { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      });
+      
+      // Get timezone abbreviation
+      const tz = Intl.DateTimeFormat(language, { timeZoneName: 'short' })
+        .formatToParts(now)
+        .find(p => p.type === 'timeZoneName')?.value || '';
+        
+      setLocalTime(`${timeStr} ${tz}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000);
+    return () => clearInterval(interval);
+  }, [language]);
+
+  const handleConsultation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!patientInfo.symptoms.trim()) return;
 
+    setIsConsulting(true);
+    setTreatmentPlan('');
+    
+    if (consultationMode === 'article') {
+      // Find relevant article based on symptoms or keywords
+      const relevantArticle = FOODS.find(f => 
+        patientInfo.symptoms.toLowerCase().includes(f.name.toLowerCase()) ||
+        f.conditions.some(c => patientInfo.symptoms.toLowerCase().includes(c.toLowerCase()))
+      );
+
+      if (relevantArticle) {
+        const localizedName = relevantArticle.translations?.[language]?.name || relevantArticle.name;
+        setTreatmentPlan(`
+### ${t('articleAnalysis')}: ${localizedName}
+
+**1. ${t('preliminaryAssessment')}:**
+${t('consultationSymptomPrefix')} **${localizedName}**.
+
+**2. ${t('suggestedNutrients')}:**
+- ${(relevantArticle.translations?.[language]?.nutrients || relevantArticle.nutrients).join(', ')}
+
+**3. ${t('mainBenefits')}:**
+- ${(relevantArticle.translations?.[language]?.benefits || relevantArticle.benefits).join('\n- ')}
+
+**4. ${t('howToUseFromArticle')}:**
+${relevantArticle.translations?.[language]?.howToUse || relevantArticle.howToUse}
+
+**5. ${t('importantNote')}:**
+${relevantArticle.translations?.[language]?.caution || relevantArticle.caution || 'N/A'}
+
+*${t('medicalDisclaimer')}*
+        `);
+      } else {
+        setTreatmentPlan(t('noArticleFound'));
+      }
+      setIsConsulting(false);
+      setTimeout(() => {
+        document.getElementById('treatment-result')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+      return;
+    }
+
     const prompt = `
-      Tôi là chuyên gia dinh dưỡng. Hãy tư vấn cho bệnh nhân:
+      Dựa trên thông tin bệnh nhân sau (Trả lời bằng ngôn ngữ: ${LANGUAGES.find(l => l.code === language)?.name}):
       - Tên: ${patientInfo.name || 'N/A'}
       - Tuổi: ${patientInfo.age || 'N/A'}
       - Giới tính: ${patientInfo.gender}
       - Triệu chứng: ${patientInfo.symptoms}
       - Tiền sử bệnh: ${patientInfo.history || 'Không có'}
 
-      Yêu cầu: Đề xuất thực phẩm nên ăn, nên tránh và bài thuốc dân gian an toàn.
+      Hãy phân tích tình trạng và đề xuất phương pháp điều trị tập trung vào dinh dưỡng (thực phẩm nên ăn, thực phẩm nên tránh) và các bài thuốc dân gian/thực phẩm bổ dưỡng an toàn. 
+      Cấu trúc câu trả lời:
+      1. Nhận định sơ bộ (mang tính tham khảo)
+      2. Thực phẩm nên bổ sung (kèm lý do)
+      3. Thực phẩm nên kiêng khem
+      4. Bài thuốc/Món ăn bài thuốc gợi ý
+      5. Lời khuyên lối sống và nhắc nhở y tế.
+      
+      Lưu ý: Phải trả lời bằng ngôn ngữ ${language} (Mã ngôn ngữ ISO).
     `;
 
-    // Copy to clipboard for convenience
-    navigator.clipboard.writeText(prompt).then(() => {
-      alert('Đã sao chép thông tin tư vấn! Bạn sẽ được chuyển đến Gemini để nhận phản hồi miễn phí.');
-      window.open('https://gemini.google.com/app', '_blank');
-    }).catch(() => {
-      window.open('https://gemini.google.com/app', '_blank');
-    });
+    try {
+      const response = await askGemini(prompt);
+      setTreatmentPlan(response || 'Error');
+      setRemainingQuota(getRemainingQuota());
+    } catch (error) {
+      console.error(error);
+      setTreatmentPlan(t('aiError'));
+    } finally {
+      setIsConsulting(false);
+      // Scroll to result
+      setTimeout(() => {
+        document.getElementById('treatment-result')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   };
 
   const [isAiLoading, setIsAiLoading] = React.useState(false);
 
   const filteredFoods = FOODS.filter(food => {
-    const matchesSearch = food.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         food.conditions.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()));
+    const localizedName = food.translations?.[language]?.name || food.name;
+    const localizedConditions = food.translations?.[language]?.conditions || food.conditions;
+    
+    const matchesSearch = localizedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         localizedConditions.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = !selectedCategory || food.category.includes(selectedCategory);
-    return matchesSearch && matchesCategory;
+    return matchesCategory && matchesSearch;
   });
 
-  const handleAiAsk = (e: React.FormEvent) => {
+  const handleAiAsk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!aiQuery.trim()) return;
     
-    window.open(`https://gemini.google.com/app`, '_blank');
+    setIsAiLoading(true);
+    setAiResponse('');
+    try {
+      const response = await askGemini(aiQuery);
+      setAiResponse(response || 'No response.');
+      setRemainingQuota(getRemainingQuota());
+    } catch (error) {
+      setAiResponse(t('aiError'));
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   return (
@@ -75,12 +302,28 @@ export default function App() {
       <header className="sticky top-0 z-40 w-full glass border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-600/20">
-              <Heart size={24} fill="currentColor" />
-            </div>
+            <Logo className="shadow-lg shadow-brand-600/10" />
             <h1 className="text-xl font-serif font-bold tracking-tight text-stone-900 hidden sm:block">
-              NutriHeal
+              {t('appName')}
             </h1>
+          </div>
+
+          <div className="hidden lg:flex flex-col items-end gap-1 px-4 py-2 bg-brand-50 border border-brand-100 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
+              <span className="text-[10px] font-bold text-brand-700 uppercase tracking-wider">
+                {remainingQuota} {t('freeQuestions')}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[9px] text-brand-400 font-medium">
+                {t('resetAfter')}: {timeToReset}
+              </span>
+              <div className="w-px h-2 bg-brand-200" />
+              <span className="text-[9px] text-brand-500 font-bold">
+                {t('currentTime')}: {localTime}
+              </span>
+            </div>
           </div>
 
           <div className="flex-1 max-w-md mx-4">
@@ -88,7 +331,7 @@ export default function App() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
               <input
                 type="text"
-                placeholder="Tìm thực phẩm hoặc bệnh lý..."
+                placeholder={t('searchPlaceholder')}
                 className="w-full pl-10 pr-4 py-2 bg-stone-100 border-none rounded-full text-sm focus:ring-2 focus:ring-brand-500 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -96,13 +339,44 @@ export default function App() {
             </div>
           </div>
 
-          <button 
-            onClick={() => setIsAiOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-full text-sm font-medium hover:bg-stone-800 transition-colors"
-          >
-            <MessageSquare size={18} />
-            <span className="hidden sm:inline">Tư vấn AI</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative group">
+              <button className="p-2 text-stone-600 hover:bg-stone-100 rounded-xl transition-all flex items-center gap-1">
+                <span className="text-lg">{LANGUAGES.find(l => l.code === language)?.flag}</span>
+                <span className="text-xs font-medium uppercase hidden sm:inline">{language}</span>
+              </button>
+              <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-2xl shadow-xl border border-stone-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-2">
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    onClick={() => handleLanguageChange(lang.code)}
+                    className={cn(
+                      "w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-stone-50 transition-colors",
+                      language === lang.code ? "text-brand-600 font-bold bg-brand-50/50" : "text-stone-600"
+                    )}
+                  >
+                    <span>{lang.flag}</span>
+                    <span>{lang.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 text-stone-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
+              title={t('settingsTitle')}
+            >
+              <Settings size={20} />
+            </button>
+            <button 
+              onClick={() => setIsAiOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-full text-sm font-medium hover:bg-stone-800 transition-colors"
+            >
+              <MessageSquare size={18} />
+              <span className="hidden sm:inline">{t('aiConsultation')}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -116,7 +390,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-4xl sm:text-5xl font-serif font-bold mb-4 leading-tight"
               >
-                Dinh dưỡng là <br /> liều thuốc tốt nhất
+                {t('heroTitle')}
               </motion.h2>
               <motion.p 
                 initial={{ opacity: 0, y: 20 }}
@@ -124,11 +398,14 @@ export default function App() {
                 transition={{ delay: 0.1 }}
                 className="text-brand-100 text-lg mb-8"
               >
-                Khám phá sức mạnh của thực phẩm tự nhiên trong việc bồi bổ cơ thể và hỗ trợ điều trị bệnh lý.
+                {t('heroSubtitle')}
               </motion.p>
               <div className="flex flex-wrap gap-4">
-                <button className="px-6 py-3 bg-white text-brand-700 rounded-full font-bold hover:bg-brand-50 transition-colors">
-                  Bắt đầu tra cứu
+                <button 
+                  onClick={() => document.getElementById('treatment-consultation-form')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="px-6 py-3 bg-white text-brand-700 rounded-full font-bold hover:bg-brand-50 transition-colors"
+                >
+                  {t('startLookup')}
                 </button>
               </div>
             </div>
@@ -145,7 +422,7 @@ export default function App() {
         </section>
 
         {/* Patient Consultation Section */}
-        <section className="mb-16">
+        <section id="treatment-consultation-form" className="mb-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-stone-100">
               <div className="flex items-center gap-3 mb-6">
@@ -153,25 +430,48 @@ export default function App() {
                   <Activity size={24} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-serif font-bold text-stone-900">Tư vấn điều trị</h3>
-                  <p className="text-stone-500 text-sm">Nhập thông tin để nhận phác đồ dinh dưỡng AI</p>
+                  <h3 className="text-2xl font-serif font-bold text-stone-900">{t('consultationTitle')}</h3>
+                  <p className="text-stone-500 text-sm">{t('consultationSubtitle')}</p>
                 </div>
+              </div>
+
+              <div className="flex p-1 bg-stone-100 rounded-xl mb-6">
+                <button
+                  type="button"
+                  onClick={() => setConsultationMode('ai')}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+                    consultationMode === 'ai' ? "bg-white text-brand-600 shadow-sm" : "text-stone-500"
+                  )}
+                >
+                  {t('aiCombined')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConsultationMode('article')}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+                    consultationMode === 'article' ? "bg-white text-brand-600 shadow-sm" : "text-stone-500"
+                  )}
+                >
+                  {t('articleOnly')}
+                </button>
               </div>
 
               <form onSubmit={handleConsultation} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Họ tên</label>
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('fullName')}</label>
                     <input 
                       type="text" 
-                      placeholder="Nguyễn Văn A"
+                      placeholder={t('namePlaceholder')}
                       className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all"
                       value={patientInfo.name}
                       onChange={(e) => setPatientInfo({...patientInfo, name: e.target.value})}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Tuổi</label>
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('age')}</label>
                     <input 
                       type="number" 
                       placeholder="30"
@@ -183,31 +483,34 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Giới tính</label>
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('gender')}</label>
                   <div className="flex gap-2">
-                    {['Nam', 'Nữ', 'Khác'].map(g => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => setPatientInfo({...patientInfo, gender: g})}
-                        className={cn(
-                          "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
-                          patientInfo.gender === g 
-                            ? "bg-brand-600 border-brand-600 text-white shadow-md shadow-brand-600/20" 
-                            : "bg-stone-50 border-stone-100 text-stone-600 hover:bg-stone-100"
-                        )}
-                      >
-                        {g}
-                      </button>
-                    ))}
+                    {['male', 'female', 'other'].map(key => {
+                      const label = t(key as any);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setPatientInfo({...patientInfo, gender: label})}
+                          className={cn(
+                            "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
+                            patientInfo.gender === label 
+                              ? "bg-brand-600 border-brand-600 text-white shadow-md shadow-brand-600/20" 
+                              : "bg-stone-50 border-stone-100 text-stone-600 hover:bg-stone-100"
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Triệu chứng hiện tại</label>
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('symptomsLabel')}</label>
                   <textarea 
                     rows={3}
-                    placeholder="Ví dụ: Đau dạ dày âm ỉ sau khi ăn, đầy hơi, khó tiêu..."
+                    placeholder={t('symptomsPlaceholder')}
                     className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all resize-none"
                     value={patientInfo.symptoms}
                     onChange={(e) => setPatientInfo({...patientInfo, symptoms: e.target.value})}
@@ -216,10 +519,10 @@ export default function App() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">Tiền sử bệnh lý</label>
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('historyLabel')}</label>
                   <input 
                     type="text" 
-                    placeholder="Ví dụ: Cao huyết áp, dị ứng hải sản..."
+                    placeholder={t('historyPlaceholder')}
                     className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all"
                     value={patientInfo.history}
                     onChange={(e) => setPatientInfo({...patientInfo, history: e.target.value})}
@@ -228,38 +531,58 @@ export default function App() {
 
                 <button 
                   type="submit"
-                  className="w-full py-4 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
+                  disabled={isConsulting}
+                  className="w-full py-4 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20"
                 >
-                  <Sparkles size={20} />
-                  Tư vấn miễn phí qua Gemini.google.com
+                  {isConsulting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      {t('analyzing')}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={20} />
+                      {t('generatePlan')}
+                    </>
+                  )}
                 </button>
               </form>
             </div>
 
             <div id="treatment-result" className="relative min-h-[400px]">
-              <div className="bg-stone-100/50 border-2 border-dashed border-stone-200 rounded-[2rem] h-full flex flex-col items-center justify-center text-center p-8">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-brand-500 mb-4 shadow-sm">
-                  <Sparkles size={32} />
-                </div>
-                <h4 className="font-bold text-stone-700 mb-2">Sử dụng Gemini Miễn Phí</h4>
-                <p className="text-stone-500 text-sm max-w-xs mb-6">
-                  Hệ thống sẽ tự động sao chép thông tin bệnh nhân và mở trang web Gemini chính thức để bạn nhận tư vấn mà không cần API Key.
-                </p>
-                <div className="flex flex-col gap-2 w-full max-w-xs">
-                  <div className="flex items-center gap-2 text-xs text-stone-400 bg-white p-3 rounded-xl border border-stone-100">
-                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                    Bước 1: Điền thông tin bên trái
+              <AnimatePresence mode="wait">
+                {treatmentPlan ? (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="bg-brand-50 p-8 rounded-[2rem] border border-brand-100 h-full overflow-y-auto"
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <h4 className="text-xl font-serif font-bold text-brand-900">{t('proposedPlan')}</h4>
+                      <button 
+                        onClick={() => setTreatmentPlan('')}
+                        className="text-brand-600 hover:text-brand-700"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="markdown-body prose prose-stone max-w-none">
+                      <ReactMarkdown>{treatmentPlan}</ReactMarkdown>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="bg-stone-100/50 border-2 border-dashed border-stone-200 rounded-[2rem] h-full flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-brand-500 mb-4 shadow-sm">
+                      <Activity size={32} />
+                    </div>
+                    <h4 className="font-bold text-stone-700 mb-2">{t('autoResult')}</h4>
+                    <p className="text-stone-500 text-sm max-w-xs">
+                      {t('autoResultDesc')}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-stone-400 bg-white p-3 rounded-xl border border-stone-100">
-                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                    Bước 2: Nhấn nút tư vấn
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-stone-400 bg-white p-3 rounded-xl border border-stone-100">
-                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                    Bước 3: Dán (Paste) vào Gemini
-                  </div>
-                </div>
-              </div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </section>
@@ -267,93 +590,107 @@ export default function App() {
         {/* Categories */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-serif font-bold">Danh mục sức khỏe</h3>
+            <h3 className="text-2xl font-serif font-bold">{t('healthCategories')}</h3>
             <button 
               onClick={() => setSelectedCategory(null)}
               className="text-sm text-brand-600 font-medium hover:underline"
             >
-              Tất cả
+              {t('all')}
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                className={cn(
-                  "flex flex-col items-center p-6 rounded-2xl transition-all border-2",
-                  selectedCategory === cat.id 
-                    ? "bg-brand-50 border-brand-500 text-brand-700 shadow-lg shadow-brand-500/10" 
-                    : "bg-white border-transparent hover:border-stone-200 text-stone-600"
-                )}
-              >
-                <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center mb-3",
-                  selectedCategory === cat.id ? "bg-brand-500 text-white" : "bg-stone-100 text-stone-500"
-                )}>
-                  {cat.id === 'heart' && <Heart size={24} />}
-                  {cat.id === 'digest' && <Activity size={24} />}
-                  {cat.id === 'immune' && <Shield size={24} />}
-                  {cat.id === 'brain' && <Brain size={24} />}
-                  {cat.id === 'bone' && <Info size={24} />}
-                  {cat.id === 'skin' && <Sparkles size={24} />}
-                </div>
-                <span className="font-bold text-sm">{cat.name}</span>
-              </button>
-            ))}
+            {CATEGORIES.map((cat) => {
+              const localizedName = cat.translations?.[language]?.name || cat.name;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
+                  className={cn(
+                    "flex flex-col items-center p-6 rounded-2xl transition-all border-2",
+                    selectedCategory === cat.id 
+                      ? "bg-brand-50 border-brand-500 text-brand-700 shadow-lg shadow-brand-500/10" 
+                      : "bg-white border-transparent hover:border-stone-200 text-stone-600"
+                  )}
+                >
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center mb-3",
+                    selectedCategory === cat.id ? "bg-brand-500 text-white" : "bg-stone-100 text-stone-500"
+                  )}>
+                    {cat.id === 'heart' && <Heart size={24} />}
+                    {cat.id === 'digest' && <Activity size={24} />}
+                    {cat.id === 'immune' && <Shield size={24} />}
+                    {cat.id === 'brain' && <Brain size={24} />}
+                    {cat.id === 'bone' && <Info size={24} />}
+                    {cat.id === 'skin' && <Sparkles size={24} />}
+                    {cat.id === 'plan' && <Sparkles size={24} />}
+                  </div>
+                  <span className="font-bold text-sm">{localizedName}</span>
+                </button>
+              );
+            })}
           </div>
         </section>
 
         {/* Food Grid */}
         <section>
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-serif font-bold">Thực phẩm gợi ý</h3>
-            <span className="text-stone-500 text-sm">{filteredFoods.length} kết quả</span>
+            <h3 className="text-2xl font-serif font-bold">{t('suggestedFoods')}</h3>
+            <span className="text-stone-500 text-sm">{filteredFoods.length} {t('results')}</span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
-              {filteredFoods.map((food) => (
-                <motion.div
-                  layout
-                  key={food.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  whileHover={{ y: -5 }}
-                  className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer border border-stone-100"
-                  onClick={() => setSelectedFood(food)}
-                >
-                  <div className="aspect-[4/3] relative overflow-hidden">
-                    <img 
-                      src={food.image} 
-                      alt={food.name}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      {food.category.map(catId => (
-                        <span key={catId} className="px-3 py-1 bg-white/90 backdrop-blur-sm text-brand-700 text-[10px] font-bold uppercase tracking-wider rounded-full">
-                          {CATEGORIES.find(c => c.id === catId)?.name}
-                        </span>
-                      ))}
+              {filteredFoods.map((food) => {
+                const localizedName = food.translations?.[language]?.name || food.name;
+                const localizedDescription = food.translations?.[language]?.description || food.description;
+                const localizedConditions = food.translations?.[language]?.conditions || food.conditions;
+
+                return (
+                  <motion.div
+                    layout
+                    key={food.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    whileHover={{ y: -5 }}
+                    className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer border border-stone-100"
+                    onClick={() => setSelectedFood(food)}
+                  >
+                    <div className="aspect-[4/3] relative overflow-hidden">
+                      <img 
+                        src={food.image} 
+                        alt={localizedName}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute top-4 left-4 flex gap-2">
+                        {food.category.map(catId => {
+                          const cat = CATEGORIES.find(c => c.id === catId);
+                          const catName = cat?.translations?.[language]?.name || cat?.name;
+                          return (
+                            <span key={catId} className="px-3 py-1 bg-white/90 backdrop-blur-sm text-brand-700 text-[10px] font-bold uppercase tracking-wider rounded-full">
+                              {catName}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-6">
-                    <h4 className="text-xl font-bold mb-2">{food.name}</h4>
-                    <p className="text-stone-500 text-sm line-clamp-2 mb-4">
-                      {food.description}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {food.conditions.slice(0, 3).map(c => (
-                        <span key={c} className="text-[11px] font-medium text-stone-600 bg-stone-100 px-2 py-1 rounded-md">
-                          #{c}
-                        </span>
-                      ))}
+                    <div className="p-6">
+                      <h4 className="text-xl font-bold mb-2">{localizedName}</h4>
+                      <p className="text-stone-500 text-sm line-clamp-2 mb-4">
+                        {localizedDescription}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {localizedConditions.slice(0, 3).map(c => (
+                          <span key={c} className="text-[11px] font-medium text-stone-600 bg-stone-100 px-2 py-1 rounded-md">
+                            #{c}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
         </section>
@@ -386,28 +723,28 @@ export default function App() {
               <div className="w-full md:w-1/2 h-64 md:h-auto relative">
                 <img 
                   src={selectedFood.image} 
-                  alt={selectedFood.name}
+                  alt={selectedFood.translations?.[language]?.name || selectedFood.name}
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-transparent md:hidden" />
                 <div className="absolute bottom-6 left-6 text-white md:hidden">
-                  <h2 className="text-3xl font-serif font-bold">{selectedFood.name}</h2>
+                  <h2 className="text-3xl font-serif font-bold">{selectedFood.translations?.[language]?.name || selectedFood.name}</h2>
                   <p className="italic opacity-80">{selectedFood.scientificName}</p>
                 </div>
               </div>
 
               <div className="w-full md:w-1/2 p-8 overflow-y-auto">
                 <div className="hidden md:block mb-6">
-                  <h2 className="text-4xl font-serif font-bold text-stone-900">{selectedFood.name}</h2>
+                  <h2 className="text-4xl font-serif font-bold text-stone-900">{selectedFood.translations?.[language]?.name || selectedFood.name}</h2>
                   <p className="text-stone-500 italic">{selectedFood.scientificName}</p>
                 </div>
 
                 <div className="space-y-6">
                   <div>
-                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">Công dụng chính</h5>
+                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">{t('mainBenefits')}</h5>
                     <ul className="grid grid-cols-1 gap-2">
-                      {selectedFood.benefits.map((benefit, i) => (
+                      {(selectedFood.translations?.[language]?.benefits || selectedFood.benefits).map((benefit, i) => (
                         <li key={i} className="flex items-start gap-2 text-stone-700">
                           <ChevronRight size={16} className="mt-1 text-brand-500 shrink-0" />
                           <span>{benefit}</span>
@@ -417,9 +754,9 @@ export default function App() {
                   </div>
 
                   <div>
-                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">Hỗ trợ điều trị</h5>
+                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">{t('supportTreatment')}</h5>
                     <div className="flex flex-wrap gap-2">
-                      {selectedFood.conditions.map(c => (
+                      {(selectedFood.translations?.[language]?.conditions || selectedFood.conditions).map(c => (
                         <span key={c} className="px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-bold">
                           {c}
                         </span>
@@ -428,30 +765,77 @@ export default function App() {
                   </div>
 
                   <div>
-                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">Dinh dưỡng</h5>
+                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">{t('nutrients')}</h5>
                     <p className="text-stone-600 text-sm leading-relaxed">
-                      {selectedFood.nutrients.join(', ')}
+                      {(selectedFood.translations?.[language]?.nutrients || selectedFood.nutrients).join(', ')}
                     </p>
                   </div>
 
                   <div>
-                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">Cách sử dụng</h5>
+                    <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600 mb-2">{t('howToUse')}</h5>
                     <p className="text-stone-600 text-sm leading-relaxed">
-                      {selectedFood.howToUse}
+                      {selectedFood.translations?.[language]?.howToUse || selectedFood.howToUse}
                     </p>
                   </div>
 
-                  {selectedFood.caution && (
+                  {(selectedFood.translations?.[language]?.caution || selectedFood.caution) && (
                     <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
                       <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase tracking-wider mb-1">
                         <Info size={14} />
-                        Lưu ý
+                        {t('caution')}
                       </div>
                       <p className="text-amber-800 text-sm italic">
-                        {selectedFood.caution}
+                        {selectedFood.translations?.[language]?.caution || selectedFood.caution}
                       </p>
                     </div>
                   )}
+
+                  {selectedFood.sources && (
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-bold uppercase tracking-widest text-brand-600">{t('reputableSources')}</h5>
+                      <div className="space-y-1">
+                        {selectedFood.sources.map((source, idx) => (
+                          <a 
+                            key={idx} 
+                            href={source.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-brand-700 hover:underline"
+                          >
+                            <ExternalLink size={14} />
+                            {source.title}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 mt-4">
+                    <button 
+                      onClick={() => {
+                        const localizedName = selectedFood.translations?.[language]?.name || selectedFood.name;
+                        setPatientInfo({
+                          ...patientInfo,
+                          symptoms: `${t('consultationSymptomPrefix')} ${localizedName}. ${t('consultationSymptomSuffix')} `
+                        });
+                        setSelectedFood(null);
+                        setTimeout(() => {
+                          document.getElementById('treatment-consultation-form')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                      className="flex-1 py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-all flex items-center justify-center gap-2 shadow-lg"
+                    >
+                      <Activity size={20} />
+                      {t('consultThisPlan')}
+                    </button>
+                    <button 
+                      onClick={() => handleShare(selectedFood)}
+                      className="p-4 bg-stone-100 text-stone-600 rounded-2xl hover:bg-stone-200 transition-colors"
+                      title={t('share')}
+                    >
+                      <Share2 size={20} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -483,7 +867,7 @@ export default function App() {
                     <Sparkles size={20} />
                   </div>
                   <div>
-                    <h3 className="font-bold">Trợ lý NutriHeal</h3>
+                    <h3 className="font-bold">{t('aiAssistantTitle')}</h3>
                     <p className="text-[10px] text-stone-400 uppercase tracking-widest">Powered by Gemini AI</p>
                   </div>
                 </div>
@@ -496,53 +880,387 @@ export default function App() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div className="text-center py-12">
-                  <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-600 shadow-inner">
-                    <Sparkles size={40} />
+                {!aiResponse && !isAiLoading && (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4 text-stone-400">
+                      <MessageSquare size={32} />
+                    </div>
+                    <h4 className="font-bold text-stone-900 mb-2">{t('askAnything')}</h4>
+                    <p className="text-stone-500 text-sm">
+                      {t('askAnythingDesc')}
+                    </p>
                   </div>
-                  <h4 className="text-xl font-serif font-bold text-stone-900 mb-3">Tư vấn trực tiếp qua Gemini</h4>
-                  <p className="text-stone-500 text-sm leading-relaxed mb-8">
-                    Để đảm bảo tính riêng tư và sử dụng hoàn toàn miễn phí không cần API Key, hệ thống sẽ chuyển bạn đến ứng dụng Gemini chính thức của Google.
-                  </p>
-                  
-                  <div className="space-y-3 text-left bg-stone-50 p-4 rounded-2xl border border-stone-100">
-                    <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">Cách thức hoạt động:</p>
-                    <div className="flex items-start gap-3 text-sm text-stone-600">
-                      <div className="w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">1</div>
-                      <p>Nhập câu hỏi của bạn vào ô bên dưới.</p>
-                    </div>
-                    <div className="flex items-start gap-3 text-sm text-stone-600">
-                      <div className="w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">2</div>
-                      <p>Hệ thống sẽ mở trang <strong>gemini.google.com</strong>.</p>
-                    </div>
-                    <div className="flex items-start gap-3 text-sm text-stone-600">
-                      <div className="w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] shrink-0 mt-0.5">3</div>
-                      <p>Bạn chỉ cần dán câu hỏi và nhận tư vấn miễn phí.</p>
-                    </div>
+                )}
+
+                {isAiLoading && (
+                  <div className="flex flex-col gap-4">
+                    <div className="w-full h-4 bg-stone-100 rounded-full animate-pulse" />
+                    <div className="w-[90%] h-4 bg-stone-100 rounded-full animate-pulse" />
+                    <div className="w-[80%] h-4 bg-stone-100 rounded-full animate-pulse" />
                   </div>
-                </div>
+                )}
+
+                {aiResponse && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="markdown-body"
+                  >
+                    <ReactMarkdown>{aiResponse}</ReactMarkdown>
+                  </motion.div>
+                )}
               </div>
 
               <div className="p-6 border-t border-stone-100 bg-stone-50">
                 <form onSubmit={handleAiAsk} className="relative">
                   <input
                     type="text"
-                    placeholder="Nhập câu hỏi của bạn..."
-                    className="w-full pl-4 pr-12 py-4 bg-white border border-stone-200 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm"
+                    placeholder={t('askPlaceholder')}
+                    className="w-full pl-4 pr-12 py-3 bg-white border border-stone-200 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm"
                     value={aiQuery}
                     onChange={(e) => setAiQuery(e.target.value)}
                   />
                   <button 
                     type="submit"
-                    disabled={!aiQuery.trim()}
+                    disabled={isAiLoading || !aiQuery.trim()}
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center hover:bg-brand-700 disabled:opacity-50 transition-all shadow-md shadow-brand-600/20"
                   >
                     <Send size={18} />
                   </button>
                 </form>
                 <p className="text-[10px] text-stone-400 mt-3 text-center">
-                  Thông tin chỉ mang tính chất tham khảo. Luôn hỏi ý kiến bác sĩ.
+                  {t('medicalDisclaimer')}
                 </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Footer */}
+      <footer className="bg-white mt-16 border-t border-stone-200">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Logo className="w-8 h-8" />
+              <span className="text-stone-900 font-serif font-bold text-xl">{t('appName')}</span>
+            </div>
+            <div className="flex flex-wrap justify-center gap-8 text-stone-500 text-sm font-medium">
+              <button 
+                onClick={() => setIsAboutOpen(true)}
+                className="hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                {t('aboutUs')}
+              </button>
+              <button 
+                onClick={() => setIsTermsOpen(true)}
+                className="hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                <FileText size={14} />
+                {t('terms')}
+              </button>
+              <button 
+                onClick={() => setIsPrivacyOpen(true)}
+                className="hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                <Lock size={14} />
+                {t('privacy')}
+              </button>
+            </div>
+            <p className="text-stone-400 text-[10px]">
+              {t('copyright')}
+            </p>
+          </div>
+        </div>
+      </footer>
+
+      {/* Privacy Policy Modal */}
+      <AnimatePresence>
+        {isPrivacyOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsPrivacyOpen(false)}
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 sm:p-10 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Lock size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('privacyTitle')}</h3>
+                      <p className="text-stone-500 text-sm">2026</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsPrivacyOpen(false)}
+                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+                  >
+                    <X size={24} className="text-stone-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-6 text-stone-600 leading-relaxed whitespace-pre-line">
+                  {t('privacyContent')}
+                </div>
+
+                <div className="mt-10">
+                  <button 
+                    onClick={() => setIsPrivacyOpen(false)}
+                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-colors"
+                  >
+                    {t('close')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Terms of Service Modal */}
+      <AnimatePresence>
+        {isTermsOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsTermsOpen(false)}
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 sm:p-10 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <FileText size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('termsTitle')}</h3>
+                      <p className="text-stone-500 text-sm">2026</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsTermsOpen(false)}
+                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+                  >
+                    <X size={24} className="text-stone-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-6 text-stone-600 leading-relaxed whitespace-pre-line">
+                  {t('termsContent')}
+                </div>
+
+                <div className="mt-10">
+                  <button 
+                    onClick={() => setIsTermsOpen(false)}
+                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-colors"
+                  >
+                    {t('agree')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* About Us Modal */}
+      <AnimatePresence>
+        {isAboutOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAboutOpen(false)}
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 sm:p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Logo className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('aboutTitle')}</h3>
+                      <p className="text-stone-500 text-sm">{t('slogan')}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsAboutOpen(false)}
+                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+                  >
+                    <X size={24} className="text-stone-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-8">
+                  <section className="text-stone-600 leading-relaxed whitespace-pre-line">
+                    {t('aboutContent')}
+                  </section>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Contact Info */}
+                    <div className="space-y-4">
+                      <h4 className="text-stone-900 font-bold flex items-center gap-2">
+                        <Phone size={18} className="text-brand-600" />
+                        {t('contactDirect')}
+                      </h4>
+                      <div className="bg-stone-50 p-4 rounded-2xl space-y-3">
+                        <div className="flex items-center gap-3">
+                          <Phone size={16} className="text-stone-400" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('hotlineLabel')}</span>
+                            <a href="tel:0972134950" className="text-stone-900 font-medium hover:text-brand-600">0972134950</a>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Facebook size={16} className="text-stone-400" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('facebookLabel')}</span>
+                            <a href="https://www.facebook.com/profile.php?id=61582965982019&locale=vi_VN" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-medium hover:text-brand-600">NutriHeal Facebook</a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Info */}
+                    <div className="space-y-4">
+                      <h4 className="text-stone-900 font-bold flex items-center gap-2">
+                        <CreditCard size={18} className="text-brand-600" />
+                        {t('supportProject')}
+                      </h4>
+                      <div className="bg-stone-50 p-4 rounded-2xl space-y-4">
+                        <div className="flex items-start gap-3">
+                          <Smartphone size={16} className="text-stone-400 mt-1" />
+                          <div>
+                            <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('momoLabel')}</p>
+                            <p className="text-stone-900 font-medium">CAO MINH HIỀN</p>
+                            <p className="text-stone-600 text-sm">0972134950</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <CreditCard size={16} className="text-stone-400 mt-1" />
+                          <div>
+                            <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('bankLabel')}</p>
+                            <p className="text-stone-900 font-medium">CAO MINH HIEN</p>
+                            <p className="text-stone-600 text-sm">3142848355 (BIDV)</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-10">
+                  <button 
+                    onClick={() => setIsAboutOpen(false)}
+                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-colors"
+                  >
+                    {t('close')}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 sm:p-10">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <Key size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('settingsTitle')}</h3>
+                      <p className="text-stone-500 text-sm">{t('settingsSubtitle')}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+                  >
+                    <X size={24} className="text-stone-400" />
+                  </button>
+                </div>
+ 
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('apiKeyLabel')}</label>
+                    <input 
+                      type="password"
+                      placeholder={t('apiKeyPlaceholder')}
+                      className="w-full px-4 py-3 bg-stone-50 border border-stone-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all"
+                      value={userApiKey}
+                      onChange={(e) => setUserApiKeyInput(e.target.value)}
+                    />
+                    <p className="text-[10px] text-stone-400 mt-1 ml-1 leading-relaxed">
+                      {t('apiKeyNote')}
+                    </p>
+                  </div>
+ 
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => {
+                        setUserApiKey(userApiKey.trim() || null);
+                        setIsSettingsOpen(false);
+                      }}
+                      className="flex-1 py-4 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-700 transition-colors"
+                    >
+                      {t('saveSettings')}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setUserApiKeyInput('');
+                        setUserApiKey(null);
+                        setIsSettingsOpen(false);
+                      }}
+                      className="px-6 py-4 bg-stone-100 text-stone-600 rounded-2xl font-bold hover:bg-stone-200 transition-colors"
+                    >
+                      {t('deleteSettings')}
+                    </button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </div>

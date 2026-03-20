@@ -10,6 +10,18 @@ export interface Food {
   howToUse: string;
   image: string;
   caution?: string;
+  sources?: { title: string; url: string }[];
+  translations?: {
+    [key: string]: {
+      name?: string;
+      benefits?: string[];
+      conditions?: string[];
+      nutrients?: string[];
+      description?: string;
+      howToUse?: string;
+      caution?: string;
+    };
+  };
 }
 
 export interface Category {
@@ -17,4 +29,10 @@ export interface Category {
   name: string;
   icon: string;
   description: string;
+  translations?: {
+    [key: string]: {
+      name?: string;
+      description?: string;
+    };
+  };
 }
