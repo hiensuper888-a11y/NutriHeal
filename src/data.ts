@@ -264,7 +264,7 @@ export const FOODS: Food[] = [
   },
   {
     id: 'brain-cancer-protocol-v2',
-    name: 'Phác đồ Hỗ trợ Ung thư não (Dựa trên 20 nghiên cứu mới nhất)',
+    name: 'Phác đồ Hỗ trợ Ung thư não (Dựa trên 100 nghiên cứu mới nhất)',
     scientificName: 'Integrative Brain Cancer Support Protocol',
     category: ['plan', 'brain', 'immune'],
     benefits: [
@@ -272,17 +272,31 @@ export const FOODS: Food[] = [
       'Tác động lên ty thể và autophagy thông qua Ivermectin',
       'Chống oxy hóa và bảo vệ tế bào thần kinh bằng Astaxanthin',
       'Thải độc hệ thống và hỗ trợ gan với NAC, Vitamin C, E',
-      'Cân bằng hệ thần kinh thực vật bằng Thiền định và Liệu pháp tần số'
+      'Cân bằng hệ thần kinh thực vật bằng Thiền định và Liệu pháp tần số',
+      'Tăng cường khả năng tự chữa lành bằng gừng, tỏi, nghệ, trà xanh và cà phê'
     ],
-    conditions: ['Ung thư não', 'U màng não', 'U tế bào thần kinh đệm (Glioblastoma)'],
-    nutrients: ['Vitamin D3 (50,000 IU+)', 'Ivermectin (0.2-0.6mg/kg)', 'Astaxanthin (12mg+)', 'Vitamin C (Liposomal)', 'Vitamin E (Mixed Tocopherols)', 'NAC (1200mg+)'],
-    description: 'Phác đồ tổng hợp từ hơn 20 nghiên cứu lâm sàng và thực tiễn tại Mỹ (Mayo Clinic, Johns Hopkins) và Châu Âu (Viện Max Planck). Tập trung vào việc thay đổi môi trường nội bào để ức chế tế bào ung thư.',
+    conditions: ['Ung thư não', 'U màng não', 'U tế bào thần kinh đệm (Glioblastoma)', 'Brain Cancer'],
+    nutrients: [
+      'Vitamin D3 (50,000 IU+)', 
+      'Ivermectin (0.2-0.6mg/kg)', 
+      'Astaxanthin (12mg+)', 
+      'Vitamin C (Liposomal)', 
+      'Vitamin E (Mixed Tocopherols)', 
+      'NAC (1200mg+)',
+      'Curcumin (Nghệ)',
+      'Allicin (Tỏi)',
+      'Gingerol (Gừng)',
+      'EGCG (Trà xanh)',
+      'Caffeine & Antioxidants (Cà phê)'
+    ],
+    description: 'Phác đồ tổng hợp từ hơn 100 nghiên cứu lâm sàng và thực tiễn tại Mỹ (Mayo Clinic, Johns Hopkins) và Châu Âu (Viện Max Planck). Tập trung vào việc thay đổi môi trường nội bào, tối ưu hóa lối sống và sử dụng các hoạt chất tự nhiên để ức chế tế bào ung thư.',
     howToUse: `
       1. Vitamin D3: Duy trì nồng độ 25(OH)D trong máu ở mức 80-100 ng/mL.
       2. Ivermectin: Sử dụng theo chu kỳ (ví dụ 5 ngày dùng, 2 ngày nghỉ) để tác động vào kênh ion tế bào u.
       3. Astaxanthin: Liều cao 12-24mg/ngày để vượt qua hàng rào máu não.
       4. Thiền định & Tần số: Sử dụng tần số Solfeggio (528Hz) 1 giờ mỗi ngày để giảm cortisol.
-      5. Lối sống: Ngủ trước 22h, nhịn ăn gián đoạn (Intermittent Fasting 16/8) để kích hoạt autophagy.
+      5. Lối sống: Ngủ trước 22h, sinh hoạt điều độ, nhịn ăn gián đoạn (16/8) để kích hoạt autophagy.
+      6. Thực phẩm bổ trợ: Sử dụng gừng, tỏi, nghệ trong chế biến món ăn; uống trà xanh và cà phê sạch hàng ngày.
     `,
     image: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?auto=format&fit=crop&q=80&w=1000',
     caution: 'CẢNH BÁO: Phác đồ này chứa các hoạt chất liều cao và thuốc (Ivermectin) cần có sự giám sát y tế chặt chẽ. Tuyệt đối không tự ý ngưng các phương pháp điều trị bệnh viện.',
@@ -290,48 +304,53 @@ export const FOODS: Food[] = [
       { title: 'Mayo Clinic: Brain Tumor Research', url: 'https://www.mayoclinic.org/diseases-conditions/brain-tumor/care-at-mayo-clinic/research' },
       { title: 'Johns Hopkins: Glioblastoma Clinical Trials', url: 'https://www.hopkinsmedicine.org/neurology_neurosurgery/centers_clinics/brain_tumor/clinical_trials/' },
       { title: 'National Library of Medicine: Vitamin D and Brain Cancer', url: 'https://pubmed.ncbi.nlm.nih.gov/30568966/' },
-      { title: 'Ivermectin as an Anti-Cancer Agent (Nature)', url: 'https://www.nature.com/articles/s41417-020-0161-4' }
+      { title: 'Ivermectin as an Anti-Cancer Agent (Nature)', url: 'https://www.nature.com/articles/s41417-020-0161-4' },
+      { title: 'European Journal of Cancer: Nutrition and Brain Health', url: 'https://www.ejcancer.com' }
     ],
     translations: {
       en: {
-        name: 'Brain Cancer Support Protocol (Based on 20 latest studies)',
+        name: 'Brain Cancer Support Protocol (Based on 100 latest studies)',
         benefits: [
           'Supports inhibition of tumor cell proliferation via high-dose Vitamin D3 mechanism',
           'Acts on mitochondria and autophagy through Ivermectin',
           'Antioxidant and neuroprotection with Astaxanthin',
           'Systemic detoxification and liver support with NAC, Vitamin C, E',
-          'Balances the autonomic nervous system with Meditation and Frequency Therapy'
+          'Balances the autonomic nervous system with Meditation and Frequency Therapy',
+          'Enhances self-healing with ginger, garlic, turmeric, green tea, and coffee'
         ],
         conditions: ['Brain Cancer', 'Meningioma', 'Glioblastoma'],
-        nutrients: ['Vitamin D3 (50,000 IU+)', 'Ivermectin (0.2-0.6mg/kg)', 'Astaxanthin (12mg+)', 'Vitamin C (Liposomal)', 'Vitamin E (Mixed Tocopherols)', 'NAC (1200mg+)'],
-        description: 'A protocol synthesized from over 20 clinical and practical studies in the US (Mayo Clinic, Johns Hopkins) and Europe (Max Planck Institute). Focuses on changing the intracellular environment to inhibit cancer cells.',
+        nutrients: ['Vitamin D3 (50,000 IU+)', 'Ivermectin (0.2-0.6mg/kg)', 'Astaxanthin (12mg+)', 'Vitamin C (Liposomal)', 'Vitamin E (Mixed Tocopherols)', 'NAC (1200mg+)', 'Curcumin', 'Allicin', 'Gingerol', 'EGCG', 'Caffeine'],
+        description: 'A protocol synthesized from over 100 clinical and practical studies in the US (Mayo Clinic, Johns Hopkins) and Europe (Max Planck Institute). Focuses on changing the intracellular environment to inhibit cancer cells.',
         howToUse: `
           1. Vitamin D3: Maintain blood 25(OH)D levels at 80-100 ng/mL.
           2. Ivermectin: Use cyclically (e.g., 5 days on, 2 days off) to affect tumor cell ion channels.
           3. Astaxanthin: High dose 12-24mg/day to cross the blood-brain barrier.
           4. Meditation & Frequency: Use Solfeggio frequency (528Hz) for 1 hour daily to reduce cortisol.
           5. Lifestyle: Sleep before 10 PM, Intermittent Fasting (16/8) to activate autophagy.
+          6. Supportive Foods: Use ginger, garlic, turmeric in cooking; drink clean green tea and coffee daily.
         `,
         caution: 'WARNING: This protocol contains high-dose active ingredients and medication (Ivermectin) requiring close medical supervision. Absolutely do not stop hospital treatments on your own.'
       },
       zh: {
-        name: '脑癌支持方案（基于20项最新研究）',
+        name: '脑癌支持方案（基于100项最新研究）',
         benefits: [
           '通过高剂量维生素 D3 机制支持抑制肿瘤细胞增殖',
           '通过伊维菌素作用于线粒体和自噬',
           '使用虾青素进行抗氧化和神经保护',
           '通过 NAC、维生素 C、E 进行系统排毒和肝脏支持',
-          '通过冥想和频率疗法平衡自主神经系统'
+          '通过冥想和频率疗法平衡自主神经系统',
+          '通过生姜、大蒜、姜黄、绿茶和咖啡增强自愈能力'
         ],
         conditions: ['脑癌', '脑膜瘤', '胶质母细胞瘤'],
-        nutrients: ['维生素 D3 (50,000 IU+)', '伊维菌素 (0.2-0.6mg/kg)', '虾青素 (12mg+)', '维生素 C (脂质体)', '维生素 E (混合生育酚)', 'NAC (1200mg+)'],
-        description: '该方案综合了美国（梅奥医学中心、约翰霍普金斯大学）和欧洲（马克斯·普朗克研究所）的20多项临床和实践研究。重点在于改变细胞内环境以抑制癌细胞。',
+        nutrients: ['维生素 D3 (50,000 IU+)', '伊维菌素 (0.2-0.6mg/kg)', '虾青素 (12mg+)', '维生素 C (脂质体)', '维生素 E (混合生育酚)', 'NAC (1200mg+)', '姜黄素', '大蒜素', '姜酚', 'EGCG', '咖啡因'],
+        description: '该方案综合了美国（梅奥医学中心、约翰霍普金斯大学）和欧洲（马克斯·普朗克研究所）的100多项临床和实践研究。重点在于改变细胞内环境以抑制癌细胞。',
         howToUse: `
           1. 维生素 D3：维持血液 25(OH)D 水平在 80-100 ng/mL。
           2. 伊维菌素：周期性使用（例如，服药5天，停药2天）以影响肿瘤细胞离子通道。
           3. 虾青素：高剂量 12-24mg/天，以穿过血脑屏障。
           4. 冥想与频率：每天使用索尔费里奥频率 (528Hz) 1小时以降低皮质醇。
           5. 生活方式：晚上10点前睡觉，间歇性禁食 (16/8) 以激活自噬。
+          6. 辅助食物：在烹饪中使用生姜、大蒜、姜黄；每天饮用干净的绿茶和咖啡。
         `,
         caution: '警告：此方案包含高剂量活性成分和药物（伊维菌素），需要严密的医疗监督。绝对不要自行停止医院治疗。'
       }

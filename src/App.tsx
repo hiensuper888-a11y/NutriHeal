@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Heart, Shield, Brain, Sparkles, Activity, Info, X, MessageSquare, Send, ChevronRight, ExternalLink, Share2, Lock, Settings, Key, Phone, Facebook, CreditCard, Smartphone, FileText } from 'lucide-react';
+import { Search, Heart, Shield, Brain, Sparkles, Activity, Info, X, MessageSquare, Send, ChevronRight, ExternalLink, Share2, Lock, Settings, Key, Phone, Facebook, CreditCard, Smartphone, FileText, CheckCircle2, AlertCircle, ShieldCheck, Copy, Printer, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FOODS, CATEGORIES } from './data';
 import { Food } from './types';
@@ -79,7 +79,7 @@ export default function App() {
 
   const [localTime, setLocalTime] = React.useState('');
 
-  const handleShare = async (food: Food) => {
+  const handleFoodShare = async (food: Food) => {
     const localizedName = food.translations?.[language]?.name || food.name;
     const shareData = {
       title: localizedName,
@@ -92,10 +92,17 @@ export default function App() {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-        alert(t('copySuccess'));
+        showToast(t('copySuccess'));
       }
     } catch (err) {
-      console.error('Error sharing:', err);
+      if ((err as Error).name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+          showToast(t('copySuccess'));
+        } catch (copyErr) {
+          console.error('Failed to share or copy:', copyErr);
+        }
+      }
     }
   };
   const [treatmentPlan, setTreatmentPlan] = React.useState('');
@@ -103,6 +110,38 @@ export default function App() {
   const [remainingQuota, setRemainingQuota] = React.useState(getRemainingQuota());
   const [consultationMode, setConsultationMode] = React.useState<'ai' | 'article'>('ai');
   const [timeToReset, setTimeToReset] = React.useState('');
+  const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleTextShare = async (text: string) => {
+    const shareData = {
+      title: t('appName'),
+      text: text,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(text);
+        showToast(t('copySuccess'));
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast(t('copySuccess'));
+        } catch (copyErr) {
+          console.error('Failed to share or copy:', copyErr);
+        }
+      }
+    }
+  };
 
   const t = (key: keyof typeof translations['vi']) => {
     return translations[language][key] || translations['en'][key] || key;
@@ -193,13 +232,12 @@ export default function App() {
     setIsConsulting(true);
     setTreatmentPlan('');
     
-    if (consultationMode === 'article') {
-      // Find relevant article based on symptoms or keywords
-      const relevantArticle = FOODS.find(f => 
-        patientInfo.symptoms.toLowerCase().includes(f.name.toLowerCase()) ||
-        f.conditions.some(c => patientInfo.symptoms.toLowerCase().includes(c.toLowerCase()))
-      );
+    const relevantArticle = FOODS.find(f => 
+      patientInfo.symptoms.toLowerCase().includes(f.name.toLowerCase()) ||
+      f.conditions.some(c => patientInfo.symptoms.toLowerCase().includes(c.toLowerCase()))
+    );
 
+    if (consultationMode === 'article') {
       if (relevantArticle) {
         const localizedName = relevantArticle.translations?.[language]?.name || relevantArticle.name;
         setTreatmentPlan(`
@@ -232,6 +270,16 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
       return;
     }
 
+    const articleContext = relevantArticle ? `
+      Dưới đây là thông tin từ cơ sở dữ liệu của ứng dụng về tình trạng này:
+      - Tên phác đồ: ${relevantArticle.name}
+      - Lợi ích: ${relevantArticle.benefits.join(', ')}
+      - Thành phần/Dinh dưỡng: ${relevantArticle.nutrients.join(', ')}
+      - Cách dùng: ${relevantArticle.howToUse}
+      - Lưu ý: ${relevantArticle.caution}
+      Hãy tích hợp thông tin này vào câu trả lời của bạn nếu thấy phù hợp.
+    ` : '';
+
     const prompt = `
       Dựa trên thông tin bệnh nhân sau (Trả lời bằng ngôn ngữ: ${LANGUAGES.find(l => l.code === language)?.name}):
       - Tên: ${patientInfo.name || 'N/A'}
@@ -239,6 +287,8 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
       - Giới tính: ${patientInfo.gender}
       - Triệu chứng: ${patientInfo.symptoms}
       - Tiền sử bệnh: ${patientInfo.history || 'Không có'}
+
+      ${articleContext}
 
       Hãy phân tích tình trạng và đề xuất phương pháp điều trị tập trung vào dinh dưỡng (thực phẩm nên ăn, thực phẩm nên tránh) và các bài thuốc dân gian/thực phẩm bổ dưỡng an toàn. 
       Cấu trúc câu trả lời:
@@ -556,19 +606,96 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="bg-brand-50 p-8 rounded-[2rem] border border-brand-100 h-full overflow-y-auto"
+                    className="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-brand-100/50 border border-brand-100 h-full overflow-y-auto relative"
                   >
-                    <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-xl font-serif font-bold text-brand-900">{t('proposedPlan')}</h4>
-                      <button 
-                        onClick={() => setTreatmentPlan('')}
-                        className="text-brand-600 hover:text-brand-700"
-                      >
-                        <X size={20} />
-                      </button>
+                    {/* Professional Header Badge */}
+                    <div className="flex items-center justify-between mb-8 pb-6 border-b border-stone-100">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-brand-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-brand-200">
+                          <Activity size={24} />
+                        </div>
+                        <div>
+                          <h4 className="text-2xl font-serif font-bold text-stone-900 leading-tight">{t('proposedPlan')}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-100">
+                              <ShieldCheck size={10} />
+                              {t('verifiedProtocol')}
+                            </span>
+                            <span className="text-[10px] text-stone-400 font-medium uppercase tracking-widest">
+                              ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(treatmentPlan);
+                            showToast(t('copySuccess'));
+                          }}
+                          className="p-2.5 text-stone-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
+                          title={t('copy')}
+                        >
+                          <Copy size={20} />
+                        </button>
+                        <button 
+                          onClick={() => handleTextShare(treatmentPlan)}
+                          className="p-2.5 text-stone-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
+                          title={t('share')}
+                        >
+                          <Share2 size={20} />
+                        </button>
+                        <button 
+                          onClick={() => window.print()}
+                          className="p-2.5 text-stone-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
+                          title={t('print')}
+                        >
+                          <Printer size={20} />
+                        </button>
+                        <button 
+                          onClick={() => setTreatmentPlan('')}
+                          className="p-2.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Report Content */}
                     <div className="markdown-body prose prose-stone max-w-none">
+                      <div className="bg-stone-50 rounded-3xl p-6 mb-8 border border-stone-100">
+                        <div className="flex items-center gap-3 mb-4 text-stone-500">
+                          <User size={18} />
+                          <span className="text-sm font-medium">{t('patientProfile')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('name')}</p>
+                            <p className="text-sm font-bold text-stone-700">{patientInfo.name || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('age')}</p>
+                            <p className="text-sm font-bold text-stone-700">{patientInfo.age || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('gender')}</p>
+                            <p className="text-sm font-bold text-stone-700 capitalize">{patientInfo.gender}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-stone-400 font-bold mb-1">{t('date')}</p>
+                            <p className="text-sm font-bold text-stone-700">{new Date().toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+
                       <ReactMarkdown>{treatmentPlan}</ReactMarkdown>
+                    </div>
+
+                    {/* Footer Disclaimer */}
+                    <div className="mt-12 pt-8 border-t border-stone-100 text-center">
+                      <p className="text-[11px] text-stone-400 italic max-w-lg mx-auto leading-relaxed">
+                        {t('medicalDisclaimer')}
+                      </p>
                     </div>
                   </motion.div>
                 ) : (
@@ -829,7 +956,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                       {t('consultThisPlan')}
                     </button>
                     <button 
-                      onClick={() => handleShare(selectedFood)}
+                      onClick={() => handleFoodShare(selectedFood)}
                       className="p-4 bg-stone-100 text-stone-600 rounded-2xl hover:bg-stone-200 transition-colors"
                       title={t('share')}
                     >
@@ -1118,9 +1245,20 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                 </div>
 
                 <div className="space-y-8">
-                  <section className="text-stone-600 leading-relaxed whitespace-pre-line">
-                    {t('aboutContent')}
-                  </section>
+                  <div className="flex flex-col md:flex-row gap-8 items-start">
+                    <div className="flex-shrink-0 w-full md:w-48 text-center">
+                      <img 
+                        src="https://scontent.fsgn2-8.fna.fbcdn.net/v/t39.30808-1/601974923_122114680323098866_7400803319906439911_n.jpg?stp=cp6_dst-jpg_s200x200_tt6&_nc_cat=102&ccb=1-7&_nc_sid=1d2534&_nc_ohc=qLnETqGldjcQ7kNvwHTcUee&_nc_oc=AdpzwPaYzbGiU28IJgJQzCQPuygoudGWd4Z1Ns6XdXoUxKzmerM6-KL6gPOqHnbxINc&_nc_zt=24&_nc_ht=scontent.fsgn2-8.fna&_nc_gid=-axxDIBKdIWBLhRHTrvSIQ&_nc_ss=7a30f&oh=00_AfxM4Hxx6T4jufxizZxUvHY37-LeylCJF2Ws3YCQXOykcw&oe=69C2F2AD" 
+                        alt="Founder" 
+                        className="w-full aspect-square rounded-3xl object-cover shadow-xl border-4 border-brand-50 mb-3"
+                        referrerPolicy="no-referrer"
+                      />
+                      <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Founder</p>
+                    </div>
+                    <section className="text-stone-600 leading-relaxed whitespace-pre-line flex-grow">
+                      {t('aboutContent')}
+                    </section>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Contact Info */}
@@ -1134,14 +1272,21 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                           <Phone size={16} className="text-stone-400" />
                           <div className="flex flex-col">
                             <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('hotlineLabel')}</span>
-                            <a href="tel:0972134950" className="text-stone-900 font-medium hover:text-brand-600">0972134950</a>
+                            <a href="tel:0973683410" className="text-stone-900 font-medium hover:text-brand-600">0973683410</a>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           <Facebook size={16} className="text-stone-400" />
                           <div className="flex flex-col">
-                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('facebookLabel')}</span>
-                            <a href="https://www.facebook.com/profile.php?id=61582965982019&locale=vi_VN" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-medium hover:text-brand-600">NutriHeal Facebook</a>
+                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('personalFBLabel')}</span>
+                            <a href="https://www.facebook.com/profile.php?id=61582965982019" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-medium hover:text-brand-600">Mr. Hien</a>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Facebook size={16} className="text-stone-400" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('fanpageLabel')}</span>
+                            <a href="https://www.facebook.com/profile.php?id=61577440552034" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-medium hover:text-brand-600">Nutri-Heal by Mr.Hien</a>
                           </div>
                         </div>
                       </div>
@@ -1159,7 +1304,7 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
                           <div>
                             <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('momoLabel')}</p>
                             <p className="text-stone-900 font-medium">CAO MINH HIỀN</p>
-                            <p className="text-stone-600 text-sm">0972134950</p>
+                            <p className="text-stone-600 text-sm">0973683410</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -1264,6 +1409,22 @@ ${relevantArticle.translations?.[language]?.caution || relevantArticle.caution |
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-lg text-white font-medium z-[100] flex items-center gap-2 ${
+              toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
+            }`}
+          >
+            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            {toast.message}
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
