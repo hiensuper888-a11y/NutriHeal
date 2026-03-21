@@ -73,9 +73,12 @@ export default function Login({ language, setLanguage }: LoginProps) {
   const handleOAuthLogin = async (provider: 'google' | 'x') => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
+        // Sử dụng 'twitter' làm định danh kỹ thuật cho X OAuth 2.0 theo chuẩn của Supabase
         provider: provider === 'x' ? 'twitter' : provider,
         options: {
           redirectTo: window.location.origin,
+          // Cấu hình Scopes cho X OAuth 2.0
+          scopes: provider === 'x' ? 'tweet.read users.read offline.access' : undefined,
           queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined,
         }
       });
