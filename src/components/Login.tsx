@@ -55,11 +55,8 @@ export default function Login({ language, setLanguage }: LoginProps) {
 
   const handleOAuthLogin = async (provider: 'google' | 'x') => {
     try {
-      // Supabase still uses 'twitter' internally for the provider ID
-      const supabaseProvider = provider === 'x' ? 'twitter' : provider;
-      
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: supabaseProvider as any,
+        provider: provider as any,
         options: {
           redirectTo: window.location.origin,
           queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined,
