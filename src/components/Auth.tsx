@@ -6,11 +6,11 @@ import { Activity } from 'lucide-react';
 export const Auth = () => {
   const [loading, setLoading] = React.useState(false);
 
-  const handleLogin = async (provider: 'google' | 'twitter') => {
+  const handleLogin = async (provider: 'google' | 'x') => {
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: provider as any,
         options: {
           redirectTo: window.location.origin,
         },
@@ -52,7 +52,7 @@ export const Auth = () => {
           </button>
 
           <button
-            onClick={() => handleLogin('twitter')}
+            onClick={() => handleLogin('x')}
             disabled={loading}
             className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-black text-white rounded-xl font-medium hover:bg-stone-800 transition-colors shadow-sm disabled:opacity-50"
           >
