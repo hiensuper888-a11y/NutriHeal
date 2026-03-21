@@ -76,6 +76,7 @@ export default function Login({ language, setLanguage }: LoginProps) {
         provider: provider === 'x' ? 'twitter' : provider,
         options: {
           redirectTo: window.location.origin,
+          queryParams: provider === 'google' ? { prompt: 'select_account' } : undefined,
         }
       });
       if (error) throw error;
