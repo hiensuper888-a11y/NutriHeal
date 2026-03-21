@@ -70,10 +70,10 @@ export default function Login({ language, setLanguage }: LoginProps) {
     }
   };
 
-  const handleOAuthLogin = async (provider: 'google' | 'twitter') => {
+  const handleOAuthLogin = async (provider: 'google' | 'x') => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: provider === 'x' ? 'twitter' : provider,
         options: {
           redirectTo: window.location.origin,
         }
@@ -204,7 +204,7 @@ export default function Login({ language, setLanguage }: LoginProps) {
               Google
             </button>
             <button 
-              onClick={() => handleOAuthLogin('twitter')}
+              onClick={() => handleOAuthLogin('x')}
               type="button"
               className="py-3 bg-stone-800/50 hover:bg-stone-800 border border-stone-700/50 rounded-xl text-white font-medium transition-all flex items-center justify-center gap-2"
             >
