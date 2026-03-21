@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Heart, Shield, Brain, Sparkles, Activity, Info, X, MessageSquare, Send, ChevronRight, ExternalLink, Share2, Lock, Settings, Key, Phone, Facebook, CreditCard, Smartphone, FileText, CheckCircle2, AlertCircle, ShieldCheck, Copy, Printer, User } from 'lucide-react';
+import { Search, Heart, Shield, Brain, Sparkles, Activity, Info, X, MessageSquare, Send, ChevronRight, ExternalLink, Share2, Lock, Settings, Key, Phone, Facebook, CreditCard, Smartphone, FileText, CheckCircle2, AlertCircle, ShieldCheck, Copy, Printer, User, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FOODS, CATEGORIES } from './data';
 import { Food } from './types';
@@ -20,7 +20,6 @@ function cn(...inputs: ClassValue[]) {
 export default function App() {
   const [session, setSession] = React.useState<any>(null);
   const [language, setLanguage] = React.useState<Language>('vi');
-  const [timeZone, setTimeZone] = React.useState<string>('Asia/Ho_Chi_Minh');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [selectedFood, setSelectedFood] = React.useState<Food | null>(null);
@@ -29,6 +28,7 @@ export default function App() {
   const [isTermsOpen, setIsTermsOpen] = React.useState(false);
   const [isAboutOpen, setIsAboutOpen] = React.useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const [userApiKey, setUserApiKeyInput] = React.useState(getUserApiKey() || '');
   const [aiQuery, setAiQuery] = React.useState('');
   const [aiResponse, setAiResponse] = React.useState('');
@@ -106,6 +106,29 @@ export default function App() {
           console.error('Failed to share or copy:', copyErr);
         }
       }
+    }
+  };
+
+  const handleProfileUpdate = async (profile: any) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          full_name: profile.name,
+          dob: profile.dob,
+          hotline: profile.hotline,
+          address: profile.address,
+          company: profile.company,
+          department: profile.department,
+          position: profile.position,
+          avatar_url: profile.avatar,
+        },
+      });
+      if (error) throw error;
+      showToast(t('updateSuccess'));
+      setIsProfileOpen(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      showToast(t('updateError'), 'error');
     }
   };
 
@@ -345,8 +368,6 @@ ${sourcesList}
     return <Login 
       language={language} 
       setLanguage={setLanguage} 
-      timeZone={timeZone} 
-      setTimeZone={setTimeZone} 
     />;
   }
 
@@ -424,11 +445,18 @@ ${sourcesList}
               <Settings size={20} />
             </button>
             <button 
+              onClick={() => setIsProfileOpen(true)}
+              className="p-2 text-stone-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
+              title="Profile"
+            >
+              <User size={20} />
+            </button>
+            <button 
               onClick={handleSignOut}
               className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
               title="Sign Out"
             >
-              <User size={20} />
+              <LogOut size={20} />
             </button>
             <button 
               onClick={() => setIsAiOpen(true)}
@@ -1185,6 +1213,10 @@ ${sourcesList}
         setIsTermsOpen={setIsTermsOpen}
         isAboutOpen={isAboutOpen}
         setIsAboutOpen={setIsAboutOpen}
+        isProfileOpen={isProfileOpen}
+        setIsProfileOpen={setIsProfileOpen}
+        user={session?.user}
+        onUpdate={handleProfileUpdate}
       />
       <AnimatePresence>
         {isSettingsOpen && (

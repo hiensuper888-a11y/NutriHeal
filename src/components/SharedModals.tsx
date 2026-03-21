@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Lock, FileText, Phone, Facebook, CreditCard, Smartphone } from 'lucide-react';
+import { X, Lock, FileText, Phone, Facebook, CreditCard, Smartphone, User } from 'lucide-react';
 import { Logo } from './Logo';
 import { translations, Language } from '../translations';
+import { Profile } from './Profile';
 
 interface SharedModalsProps {
   language: Language;
@@ -12,6 +13,10 @@ interface SharedModalsProps {
   setIsTermsOpen: (open: boolean) => void;
   isAboutOpen: boolean;
   setIsAboutOpen: (open: boolean) => void;
+  isProfileOpen: boolean;
+  setIsProfileOpen: (open: boolean) => void;
+  user: any;
+  onUpdate: (profile: any) => void;
 }
 
 export function SharedModals({
@@ -21,7 +26,11 @@ export function SharedModals({
   isTermsOpen,
   setIsTermsOpen,
   isAboutOpen,
-  setIsAboutOpen
+  setIsAboutOpen,
+  isProfileOpen,
+  setIsProfileOpen,
+  user,
+  onUpdate
 }: SharedModalsProps) {
   const t = (key: keyof typeof translations['vi']) => {
     return translations[language]?.[key] || translations['vi'][key];
@@ -257,6 +266,47 @@ export function SharedModals({
                     {t('close')}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Modal */}
+      <AnimatePresence>
+        {isProfileOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsProfileOpen(false)}
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 sm:p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div className="flex justify-between items-start mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
+                      <User size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-serif font-bold text-stone-900">Profile</h3>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsProfileOpen(false)}
+                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
+                  >
+                    <X size={24} className="text-stone-400" />
+                  </button>
+                </div>
+                <Profile user={user} onUpdate={onUpdate} />
               </div>
             </motion.div>
           </div>

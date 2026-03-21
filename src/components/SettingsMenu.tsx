@@ -6,11 +6,9 @@ import { LANGUAGES, Language } from '../translations';
 interface SettingsMenuProps {
   language: Language;
   setLanguage: (lang: Language) => void;
-  timeZone: string;
-  setTimeZone: (tz: string) => void;
 }
 
-export function SettingsMenu({ language, setLanguage, timeZone, setTimeZone }: SettingsMenuProps) {
+export function SettingsMenu({ language, setLanguage }: SettingsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -51,17 +49,6 @@ export function SettingsMenu({ language, setLanguage, timeZone, setTimeZone }: S
                     <option key={l.code} value={l.code}>{l.flag} {l.name}</option>
                   ))}
                 </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-stone-400 uppercase tracking-wider ml-1 flex items-center gap-1">
-                  <Clock size={12} /> Múi giờ
-                </label>
-                <input 
-                  type="text"
-                  value={timeZone}
-                  onChange={(e) => setTimeZone(e.target.value)}
-                  className="w-full px-3 py-2 bg-stone-900/50 border border-stone-700/50 rounded-xl text-white text-sm focus:ring-2 focus:ring-brand-500 transition-all"
-                />
               </div>
             </div>
           </motion.div>

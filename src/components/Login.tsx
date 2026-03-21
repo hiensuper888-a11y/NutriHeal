@@ -10,11 +10,9 @@ import { LANGUAGES, Language, translations } from '../translations';
 interface LoginProps {
   language: Language;
   setLanguage: (lang: Language) => void;
-  timeZone: string;
-  setTimeZone: (tz: string) => void;
 }
 
-export default function Login({ language, setLanguage, timeZone, setTimeZone }: LoginProps) {
+export default function Login({ language, setLanguage }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -36,7 +34,6 @@ export default function Login({ language, setLanguage, timeZone, setTimeZone }: 
   }, []);
 
   const formattedDate = new Intl.DateTimeFormat(language, {
-    timeZone,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -94,8 +91,6 @@ export default function Login({ language, setLanguage, timeZone, setTimeZone }: 
         <SettingsMenu 
           language={language}
           setLanguage={setLanguage}
-          timeZone={timeZone}
-          setTimeZone={setTimeZone}
         />
       </div>
 
@@ -247,6 +242,10 @@ export default function Login({ language, setLanguage, timeZone, setTimeZone }: 
         setIsTermsOpen={setShowTerms}
         isAboutOpen={showAbout}
         setIsAboutOpen={setShowAbout}
+        isProfileOpen={false}
+        setIsProfileOpen={() => {}}
+        user={null}
+        onUpdate={() => {}}
       />
     </div>
   );
