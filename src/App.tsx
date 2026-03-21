@@ -8,56 +8,19 @@ import { translations, LANGUAGES, Language } from './translations';
 import ReactMarkdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { supabase } from './lib/supabase';
+import Login from './components/Login';
+import { Logo } from './components/Logo';
+import { SharedModals } from './components/SharedModals';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const Logo = ({ className }: { className?: string }) => {
-  const id = React.useId().replace(/:/g, '');
-  const pillGradId = `pill-grad-${id}`;
-  const zenGlowId = `zen-glow-${id}`;
-  
-  return (
-    <svg viewBox="0 0 100 100" className={cn("w-10 h-10", className)} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id={pillGradId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#059669" />
-          <stop offset="100%" stopColor="#10b981" />
-        </linearGradient>
-        <filter id={zenGlowId} x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
-      
-      {/* Artistic Capsule - Horizontal with soft edges */}
-      <rect x="10" y="42" width="80" height="36" rx="18" fill="white" stroke={`url(#${pillGradId})`} strokeWidth="3" />
-      <path d="M50 42V78" stroke={`url(#${pillGradId})`} strokeWidth="3" strokeLinecap="round" />
-      <rect x="10" y="42" width="40" height="36" rx="18" fill={`url(#${pillGradId})`} opacity="0.08" />
-      
-      {/* Meditating Person - Fluid Zen Silhouette */}
-      <g filter={`url(#${zenGlowId})`}>
-        {/* Head - Floating like a seed of wisdom */}
-        <circle cx="50" cy="28" r="7" fill={`url(#${pillGradId})`} />
-        {/* Body - Flowing posture */}
-        <path d="M50 35 Q50 48 50 58" stroke={`url(#${pillGradId})`} strokeWidth="5" strokeLinecap="round" />
-        {/* Arms - Circular mudra for harmony */}
-        <path d="M42 45 Q32 48 42 58" stroke={`url(#${pillGradId})`} strokeWidth="3" strokeLinecap="round" fill="none" />
-        <path d="M58 45 Q68 48 58 58" stroke={`url(#${pillGradId})`} strokeWidth="3" strokeLinecap="round" fill="none" />
-        {/* Legs - Lotus position sitting gracefully */}
-        <path d="M32 58 Q50 68 68 58" stroke={`url(#${pillGradId})`} strokeWidth="5" strokeLinecap="round" fill="none" />
-      </g>
-      
-      {/* Zen Energy Ripples */}
-      <circle cx="50" cy="28" r="16" stroke={`url(#${pillGradId})`} strokeWidth="0.5" strokeDasharray="3 5" opacity="0.25" />
-      <circle cx="50" cy="28" r="22" stroke={`url(#${pillGradId})`} strokeWidth="0.5" strokeDasharray="1 7" opacity="0.1" />
-    </svg>
-  );
-};
-
 export default function App() {
+  const [session, setSession] = React.useState<any>(null);
   const [language, setLanguage] = React.useState<Language>('vi');
+  const [timeZone, setTimeZone] = React.useState<string>('Asia/Ho_Chi_Minh');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [selectedFood, setSelectedFood] = React.useState<Food | null>(null);
@@ -154,18 +117,10 @@ export default function App() {
     // Set document title
     document.title = t('appName');
 
-    // Auto-detect language
+    // Load saved language from localStorage
     const savedLang = localStorage.getItem('nutriheal_lang') as Language;
     if (savedLang && LANGUAGES.find(l => l.code === savedLang)) {
       setLanguage(savedLang);
-    } else {
-      const browserLang = navigator.language.split('-')[0] as Language;
-      const supportedLang = LANGUAGES.find(l => l.code === browserLang);
-      if (supportedLang) {
-        setLanguage(supportedLang.code as Language);
-      } else {
-        setLanguage('en');
-      }
     }
 
     // Update favicon with a data URL of the logo
@@ -197,6 +152,20 @@ export default function App() {
     setLanguage(lang);
     localStorage.setItem('nutriheal_lang', lang);
   };
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   React.useEffect(() => {
     const updateTimer = () => {
@@ -368,6 +337,19 @@ ${sourcesList}
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (!session) {
+    return <Login 
+      language={language} 
+      setLanguage={setLanguage} 
+      timeZone={timeZone} 
+      setTimeZone={setTimeZone} 
+    />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-brand-50/50">
       {/* Header */}
@@ -440,6 +422,13 @@ ${sourcesList}
               title={t('settingsTitle')}
             >
               <Settings size={20} />
+            </button>
+            <button 
+              onClick={handleSignOut}
+              className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+              title="Sign Out"
+            >
+              <User size={20} />
             </button>
             <button 
               onClick={() => setIsAiOpen(true)}
@@ -1176,251 +1165,27 @@ ${sourcesList}
                 onClick={() => setIsPrivacyOpen(true)}
                 className="hover:text-brand-600 transition-colors flex items-center gap-1"
               >
-                <Lock size={14} />
+                <Shield size={14} />
                 {t('privacy')}
               </button>
             </div>
-            <p className="text-stone-400 text-[10px]">
-              {t('copyright')}
-            </p>
+            <div className="text-stone-400 text-sm">
+              © {new Date().getFullYear()} {t('appName')}. All rights reserved.
+            </div>
           </div>
         </div>
       </footer>
 
-      {/* Privacy Policy Modal */}
-      <AnimatePresence>
-        {isPrivacyOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsPrivacyOpen(false)}
-              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
-            >
-              <div className="p-8 sm:p-10 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                <div className="flex justify-between items-start mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
-                      <Lock size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('privacyTitle')}</h3>
-                      <p className="text-stone-500 text-sm">2026</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setIsPrivacyOpen(false)}
-                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
-                  >
-                    <X size={24} className="text-stone-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-6 text-stone-600 leading-relaxed whitespace-pre-line">
-                  {t('privacyContent')}
-                </div>
-
-                <div className="mt-10">
-                  <button 
-                    onClick={() => setIsPrivacyOpen(false)}
-                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-colors"
-                  >
-                    {t('close')}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Terms of Service Modal */}
-      <AnimatePresence>
-        {isTermsOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsTermsOpen(false)}
-              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
-            >
-              <div className="p-8 sm:p-10 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                <div className="flex justify-between items-start mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
-                      <FileText size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('termsTitle')}</h3>
-                      <p className="text-stone-500 text-sm">2026</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setIsTermsOpen(false)}
-                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
-                  >
-                    <X size={24} className="text-stone-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-6 text-stone-600 leading-relaxed whitespace-pre-line">
-                  {t('termsContent')}
-                </div>
-
-                <div className="mt-10">
-                  <button 
-                    onClick={() => setIsTermsOpen(false)}
-                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-colors"
-                  >
-                    {t('agree')}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* About Us Modal */}
-      <AnimatePresence>
-        {isAboutOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsAboutOpen(false)}
-              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
-            >
-              <div className="p-8 sm:p-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <div className="flex justify-between items-start mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center">
-                      <Logo className="w-8 h-8" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-serif font-bold text-stone-900">{t('aboutTitle')}</h3>
-                      <p className="text-stone-500 text-sm">{t('slogan')}</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setIsAboutOpen(false)}
-                    className="p-2 hover:bg-stone-100 rounded-full transition-colors"
-                  >
-                    <X size={24} className="text-stone-400" />
-                  </button>
-                </div>
-
-                <div className="space-y-8">
-                  <div className="flex flex-col md:flex-row gap-8 items-start">
-                    <div className="flex-shrink-0 w-full md:w-48 text-center">
-                      <img 
-                        src="https://scontent.fsgn2-8.fna.fbcdn.net/v/t39.30808-1/601974923_122114680323098866_7400803319906439911_n.jpg?stp=cp6_dst-jpg_s200x200_tt6&_nc_cat=102&ccb=1-7&_nc_sid=1d2534&_nc_ohc=qLnETqGldjcQ7kNvwHTcUee&_nc_oc=AdpzwPaYzbGiU28IJgJQzCQPuygoudGWd4Z1Ns6XdXoUxKzmerM6-KL6gPOqHnbxINc&_nc_zt=24&_nc_ht=scontent.fsgn2-8.fna&_nc_gid=-axxDIBKdIWBLhRHTrvSIQ&_nc_ss=7a30f&oh=00_AfxM4Hxx6T4jufxizZxUvHY37-LeylCJF2Ws3YCQXOykcw&oe=69C2F2AD" 
-                        alt="Founder" 
-                        className="w-full aspect-square rounded-3xl object-cover shadow-xl border-4 border-brand-50 mb-3"
-                        referrerPolicy="no-referrer"
-                      />
-                      <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Founder</p>
-                    </div>
-                    <section className="text-stone-600 leading-relaxed whitespace-pre-line flex-grow">
-                      {t('aboutContent')}
-                    </section>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Contact Info */}
-                    <div className="space-y-4">
-                      <h4 className="text-stone-900 font-bold flex items-center gap-2">
-                        <Phone size={18} className="text-brand-600" />
-                        {t('contactDirect')}
-                      </h4>
-                      <div className="bg-stone-50 p-4 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-3">
-                          <Phone size={16} className="text-stone-400" />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('hotlineLabel')}</span>
-                            <a href="tel:0973683410" className="text-stone-900 font-medium hover:text-brand-600">0973683410</a>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Facebook size={16} className="text-stone-400" />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('personalFBLabel')}</span>
-                            <a href="https://www.facebook.com/profile.php?id=61582965982019" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-medium hover:text-brand-600">Mr. Hien</a>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Facebook size={16} className="text-stone-400" />
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('fanpageLabel')}</span>
-                            <a href="https://www.facebook.com/profile.php?id=61577440552034" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-medium hover:text-brand-600">Nutri-Heal by Mr.Hien</a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Payment Info */}
-                    <div className="space-y-4">
-                      <h4 className="text-stone-900 font-bold flex items-center gap-2">
-                        <CreditCard size={18} className="text-brand-600" />
-                        {t('supportProject')}
-                      </h4>
-                      <div className="bg-stone-50 p-4 rounded-2xl space-y-4">
-                        <div className="flex items-start gap-3">
-                          <Smartphone size={16} className="text-stone-400 mt-1" />
-                          <div>
-                            <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('momoLabel')}</p>
-                            <p className="text-stone-900 font-medium">CAO MINH HIỀN</p>
-                            <p className="text-stone-600 text-sm">0973683410</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <CreditCard size={16} className="text-stone-400 mt-1" />
-                          <div>
-                            <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">{t('bankLabel')}</p>
-                            <p className="text-stone-900 font-medium">CAO MINH HIEN</p>
-                            <p className="text-stone-600 text-sm">3142848355 (BIDV)</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-10">
-                  <button 
-                    onClick={() => setIsAboutOpen(false)}
-                    className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold hover:bg-stone-800 transition-colors"
-                  >
-                    {t('close')}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      {/* Settings Modal */}
+      {/* Shared Modals */}
+      <SharedModals 
+        language={language}
+        isPrivacyOpen={isPrivacyOpen}
+        setIsPrivacyOpen={setIsPrivacyOpen}
+        isTermsOpen={isTermsOpen}
+        setIsTermsOpen={setIsTermsOpen}
+        isAboutOpen={isAboutOpen}
+        setIsAboutOpen={setIsAboutOpen}
+      />
       <AnimatePresence>
         {isSettingsOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
