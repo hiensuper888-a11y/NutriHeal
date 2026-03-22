@@ -41,7 +41,8 @@ export default function Home({ session, language, setLanguage, handleSignOut, se
     history: '',
     dailySchedule: '',
     currentDiet: '',
-    currentMedication: ''
+    currentMedication: '',
+    desiredGoals: ''
   });
 
   const [localTime, setLocalTime] = React.useState('');
@@ -219,18 +220,22 @@ ${sourcesList}
       - Lịch trình sinh hoạt: ${patientInfo.dailySchedule || 'Không có'}
       - Chế độ ăn uống hiện tại: ${patientInfo.currentDiet || 'Không có'}
       - Thuốc/Thực phẩm bổ sung đang dùng: ${patientInfo.currentMedication || 'Không có'}
+      - Mong muốn/Mục tiêu: ${patientInfo.desiredGoals || 'Không có'}
 
       ${articleContext}
 
       Hãy phân tích tình trạng và đề xuất phương pháp điều trị tập trung vào dinh dưỡng, lối sống và các bài thuốc dân gian/thực phẩm bổ dưỡng an toàn. 
-      Cấu trúc câu trả lời:
+      Đặc biệt chú trọng vào mục tiêu: ${patientInfo.desiredGoals}.
+      
+      Yêu cầu bắt buộc trong câu trả lời:
       1. Nhận định sơ bộ (mang tính tham khảo)
-      2. Chế độ ăn uống chi tiết (Ăn gì, uống gì, kiêng gì kèm lý do)
-      3. Thuốc và Thực phẩm bổ sung (Gợi ý các loại thuốc không kê đơn hoặc thực phẩm bổ sung an toàn, phù hợp)
+      2. Chế độ ăn uống chi tiết (Ăn gì, uống gì, kiêng gì kèm lý do để đạt mục tiêu)
+      3. Thuốc và Thực phẩm bổ sung (Gợi ý các loại thuốc không kê đơn hoặc thực phẩm bổ sung an toàn). 
+         Bắt buộc tư vấn cách dùng và liều lượng cho: Vitamin D3, Astaxanthin, Ivermectin, Omega-3, Vitamin C, Vitamin E, NAC, Milk Thistle nếu phù hợp với tình trạng.
       4. Bài thuốc/Món ăn bài thuốc gợi ý
       5. Lịch trình sinh hoạt (Thời gian ngủ, nghỉ ngơi, làm việc trong ngày)
-      6. Lời khuyên lối sống và nhắc nhở y tế.
-      7. Nguồn tham khảo và Nghiên cứu uy tín (Bắt buộc cung cấp các đường link URL cụ thể dẫn đến các trang web y tế, bài báo nghiên cứu khoa học thực tiễn và uy tín nhất thế giới từ Mỹ, Châu Âu như PubMed, Mayo Clinic, WHO, NIH, NHS... để chứng minh cho các đề xuất trên).
+      6. Lời khuyên lối sống, áp dụng tần số (frequency therapy), thiền định (meditation) và nhắc nhở y tế.
+      7. Bắt buộc cung cấp ít nhất 20 nghiên cứu uy tín thực tế từ Mỹ (USA), Anh (UK), Châu Âu (Europe) có link URL cụ thể (PubMed, Mayo Clinic, WHO, NIH, NHS, ScienceDirect, Lancet...) để chứng minh cho các đề xuất trên, đặc biệt là các nghiên cứu về các hoạt chất đã nêu.
       
       Lưu ý: Phải trả lời bằng ngôn ngữ ${language} (Mã ngôn ngữ ISO).
     `;
@@ -559,6 +564,17 @@ ${sourcesList}
                     className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all"
                     value={patientInfo.currentMedication}
                     onChange={(e) => setPatientInfo({...patientInfo, currentMedication: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-stone-400 uppercase tracking-wider ml-1">{t('desiredGoalsLabel')}</label>
+                  <textarea 
+                    rows={2}
+                    placeholder={t('desiredGoalsPlaceholder')}
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 shadow-sm transition-all resize-none"
+                    value={patientInfo.desiredGoals}
+                    onChange={(e) => setPatientInfo({...patientInfo, desiredGoals: e.target.value})}
                   />
                 </div>
 
