@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Heart, Shield, Brain, Sparkles, Activity, MessageSquare, Send, ChevronRight, ExternalLink, Share2, User, LogOut, Settings, Key, Info, X, Copy, Printer, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Heart, Shield, Brain, Sparkles, Activity, MessageSquare, Send, ChevronRight, ExternalLink, Share2, User, LogOut, Settings, Key, Info, X, Copy, Printer, ShieldCheck, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FOODS, CATEGORIES } from '../data';
 import { Food } from '../types';
@@ -281,10 +281,6 @@ ${sourcesList}
     }
   };
 
-  const handleLanguageChange = (lang: Language) => {
-    setLanguage(lang);
-    localStorage.setItem('nutriheal_lang', lang);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-brand-50/50">
@@ -339,7 +335,7 @@ ${sourcesList}
                 {LANGUAGES.map((lang) => (
                   <button
                     key={lang.code}
-                    onClick={() => handleLanguageChange(lang.code)}
+                    onClick={() => setLanguage(lang.code)}
                     className={cn(
                       "w-full px-4 py-2 text-left text-sm flex items-center gap-3 hover:bg-stone-50 transition-colors",
                       language === lang.code ? "text-brand-600 font-bold bg-brand-50/50" : "text-stone-600"
@@ -1157,6 +1153,41 @@ ${sourcesList}
           </motion.div>
         )}
       </AnimatePresence>
+      <footer className="bg-white mt-16 border-t border-stone-200">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Logo className="w-8 h-8" />
+              <span className="text-stone-900 font-serif font-bold text-xl">{t('appName')}</span>
+            </div>
+            <div className="flex flex-wrap justify-center gap-8 text-stone-500 text-sm font-medium">
+              <Link 
+                to="/about"
+                className="hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                {t('aboutUs')}
+              </Link>
+              <Link 
+                to="/terms"
+                className="hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                <FileText size={14} />
+                {t('terms')}
+              </Link>
+              <Link 
+                to="/privacy"
+                className="hover:text-brand-600 transition-colors flex items-center gap-1"
+              >
+                <Shield size={14} />
+                {t('privacy')}
+              </Link>
+            </div>
+            <div className="text-stone-400 text-sm">
+              © {new Date().getFullYear()} {t('appName')}. All rights reserved.
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
